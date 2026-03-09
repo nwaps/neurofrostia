@@ -90,28 +90,77 @@ jobs:
           name: moralityengine-config-${{ github.sha }}
           path: artifacts/moralityengine-config
 
-      - name: Check Plugins Directory Permissions
+      - name: Check and Fix Permissions
         run: |
           PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.DEV_CRAFTY_SERVER_GUID }}/plugins"
+          declare -A CONFIG_DIRS=(
+            [corelife]="CoreLife"
+            [moralityengine]="MoralityEngine"
+          )
 
+          # Check plugins root exists
           if [ ! -d "$PLUGINS_DIR" ]; then
             echo "❌ Plugins directory does not exist: $PLUGINS_DIR"
             exit 1
           fi
 
+          # Fix plugins root write permission
           if [ ! -w "$PLUGINS_DIR" ]; then
-            echo "❌ No write permission on: $PLUGINS_DIR"
-            echo "Fix with: sudo chmod g+w $PLUGINS_DIR && sudo chmod g+s $PLUGINS_DIR"
-            exit 1
+            echo "🔧 Fixing write permission on plugins directory: $PLUGINS_DIR"
+            chmod g+w "$PLUGINS_DIR"
+            if [ ! -w "$PLUGINS_DIR" ]; then
+              echo "❌ Could not fix write permission on $PLUGINS_DIR — try: sudo chmod g+w $PLUGINS_DIR && sudo chmod g+s $PLUGINS_DIR"
+              exit 1
+            fi
           fi
 
+          # Fix plugins root execute permission
           if [ ! -x "$PLUGINS_DIR" ]; then
-            echo "❌ No execute permission on: $PLUGINS_DIR"
-            echo "Fix with: sudo chmod g+x $PLUGINS_DIR"
-            exit 1
+            echo "🔧 Fixing execute permission on plugins directory: $PLUGINS_DIR"
+            chmod g+x "$PLUGINS_DIR"
+            if [ ! -x "$PLUGINS_DIR" ]; then
+              echo "❌ Could not fix execute permission on $PLUGINS_DIR — try: sudo chmod g+x $PLUGINS_DIR"
+              exit 1
+            fi
           fi
 
-          echo "✅ Plugins directory exists and is writable: $PLUGINS_DIR"
+          # Set sticky bit so new files inherit group
+          chmod g+s "$PLUGINS_DIR"
+
+          echo "✅ Plugins directory permissions OK"
+
+          # Check and fix each plugin config directory and file
+          for PLUGIN in corelife moralityengine; do
+            CONFIG_DIR="${PLUGINS_DIR}/${CONFIG_DIRS[$PLUGIN]}"
+            CONFIG_FILE="${CONFIG_DIR}/config.yml"
+
+            if [ ! -d "$CONFIG_DIR" ]; then
+              echo "⚠️  Config directory missing for ${PLUGIN}, creating: $CONFIG_DIR"
+              mkdir -p "$CONFIG_DIR"
+            fi
+
+            if [ ! -w "$CONFIG_DIR" ]; then
+              echo "🔧 Fixing write permission on config dir: $CONFIG_DIR"
+              chmod g+w "$CONFIG_DIR"
+              if [ ! -w "$CONFIG_DIR" ]; then
+                echo "❌ Could not fix write permission on $CONFIG_DIR — try: sudo chmod g+w $CONFIG_DIR"
+                exit 1
+              fi
+            fi
+
+            echo "✅ Config directory writable for ${PLUGIN}"
+
+            if [ -f "$CONFIG_FILE" ] && [ ! -w "$CONFIG_FILE" ]; then
+              echo "🔧 Fixing write permission on config file: $CONFIG_FILE"
+              chmod g+w "$CONFIG_FILE"
+              if [ ! -w "$CONFIG_FILE" ]; then
+                echo "❌ Could not fix write permission on $CONFIG_FILE — try: sudo chmod g+w $CONFIG_FILE"
+                exit 1
+              fi
+            fi
+
+            echo "✅ Config file writable for ${PLUGIN}"
+          done
 
       - name: Backup and Deploy JARs
         run: |
@@ -144,7 +193,7 @@ jobs:
               fi
               cp "$CONFIG_SRC" "$CONFIG_DEST"
             else
-              echo "⚠️ No config found for ${PLUGIN} at $CONFIG_SRC — skipping"
+              echo "⚠️  No config found for ${PLUGIN} at $CONFIG_SRC — skipping"
             fi
           done
 

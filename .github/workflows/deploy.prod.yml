@@ -82,7 +82,7 @@ jobs:
           path: artifacts
           merge-multiple: false
 
-      - name: Check Plugins Directory Permissions
+      - name: Check and Fix Permissions
         run: |
           PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.PROD_CRAFTY_SERVER_GUID }}/plugins"
 
@@ -92,18 +92,26 @@ jobs:
           fi
 
           if [ ! -w "$PLUGINS_DIR" ]; then
-            echo "❌ No write permission on: $PLUGINS_DIR"
-            echo "Fix with: sudo chmod g+w $PLUGINS_DIR && sudo chmod g+s $PLUGINS_DIR"
-            exit 1
+            echo "🔧 Fixing write permission on plugins directory: $PLUGINS_DIR"
+            chmod g+w "$PLUGINS_DIR"
+            if [ ! -w "$PLUGINS_DIR" ]; then
+              echo "❌ Could not fix write permission on $PLUGINS_DIR — try: sudo chmod g+w $PLUGINS_DIR && sudo chmod g+s $PLUGINS_DIR"
+              exit 1
+            fi
           fi
 
           if [ ! -x "$PLUGINS_DIR" ]; then
-            echo "❌ No execute permission on: $PLUGINS_DIR"
-            echo "Fix with: sudo chmod g+x $PLUGINS_DIR"
-            exit 1
+            echo "🔧 Fixing execute permission on plugins directory: $PLUGINS_DIR"
+            chmod g+x "$PLUGINS_DIR"
+            if [ ! -x "$PLUGINS_DIR" ]; then
+              echo "❌ Could not fix execute permission on $PLUGINS_DIR — try: sudo chmod g+x $PLUGINS_DIR"
+              exit 1
+            fi
           fi
 
-          echo "✅ Plugins directory exists and is writable: $PLUGINS_DIR"
+          chmod g+s "$PLUGINS_DIR"
+
+          echo "✅ Plugins directory permissions OK"
 
       - name: Backup and Deploy
         run: |
