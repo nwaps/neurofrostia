@@ -5,30 +5,39 @@ on:
     branches: [dev]
 
 jobs:
-  build:
+  build-corelife:
     runs-on: [self-hosted, dev]
-    strategy:
-      matrix:
-        plugin: [corelife, moralityengine]
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Test
-        run: mvn -f plugins/${{ matrix.plugin }}/pom.xml test --batch-mode
-
-      - name: Build
-        run: mvn -f plugins/${{ matrix.plugin }}/pom.xml package -DskipTests --batch-mode
+      - name: Test & Install CoreLife
+        run: mvn -f plugins/corelife/pom.xml install --batch-mode
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.plugin }}-${{ github.sha }}
-          path: plugins/${{ matrix.plugin }}/target/*.jar
+          name: corelife-${{ github.sha }}
+          path: plugins/corelife/target/*.jar
+          if-no-files-found: error
+
+  build-moralityengine:
+    needs: build-corelife
+    runs-on: [self-hosted, dev]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test & Build MoralityEngine
+        run: mvn -f plugins/moralityengine/pom.xml install --batch-mode
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moralityengine-${{ github.sha }}
+          path: plugins/moralityengine/target/*.jar
           if-no-files-found: error
 
   deploy:
-    needs: build
+    needs: [build-corelife, build-moralityengine]
     runs-on: [self-hosted, dev]
 
     steps:
