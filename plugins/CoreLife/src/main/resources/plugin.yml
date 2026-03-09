@@ -1,0 +1,33 @@
+name: CoreLife
+version: ${project.version}
+main: com.corelife.CoreLife
+api-version: '1.21'
+description: Hardcore life system, combat tagging, and seasonal phase gates
+
+commands:
+  lives:
+    description: Check how many lives you have remaining
+    usage: /lives [player]
+  corelife:
+    description: CoreLife admin commands
+    usage: /corelife <reload|lives|setlives|givelives|info|tag|untag|ban|unban|rollover|ghostlist|ghostkill|phaseinfo|unlock>
+    permission: corelife.admin
+  tradelives:
+    description: Trade lives to another player
+    usage: /tradelives <player> <amount>
+  setphase:
+    description: Set the current game phase
+    usage: /setphase <OVERWORLD|NETHER|END>
+    permission: corelife.admin
+  checkseason:
+    description: Check season end eligibility and trigger wind-down
+    usage: /checkseason
+    permission: corelife.admin
+
+permissions:
+  corelife.admin:
+    description: Access to CoreLife admin commands
+    default: op
+  corelife.trade:
+    description: Ability to trade lives with other players
+    default: true

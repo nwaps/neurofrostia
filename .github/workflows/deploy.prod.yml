@@ -1,0 +1,86 @@
+name: Deploy to Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: 'Plugin to deploy'
+        required: true
+        type: choice
+        options: [corelife, moralityengine, all]
+
+jobs:
+  confirm-branch:
+    runs-on: [self-hosted, prod]
+    steps:
+      - name: Confirm running on main
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "This workflow must be triggered from main."
+            exit 1
+          fi
+
+  build:
+    needs: confirm-branch
+    runs-on: [self-hosted, prod]
+    strategy:
+      matrix:
+        plugin: ${{ inputs.plugin == 'all' && fromJson('["corelife","moralityengine"]') || fromJson(format('["{0}"]', inputs.plugin)) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Build
+        run: mvn -f plugins/${{ matrix.plugin }}/pom.xml package -DskipTests --batch-mode
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.plugin }}-${{ github.sha }}
+          path: plugins/${{ matrix.plugin }}/target/*.jar
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    runs-on: [self-hosted, prod]
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-${{ github.sha }}"
+          path: artifacts
+          merge-multiple: false
+
+      - name: Backup and Deploy
+        run: |
+          PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.PROD_CRAFTY_SERVER_GUID }}/plugins"
+          BACKUP_DIR="${PLUGINS_DIR}/backups/$(date +%Y%m%d%H%M%S)"
+          mkdir -p "$BACKUP_DIR"
+          for ARTIFACT_DIR in artifacts/*/; do
+            PLUGIN=$(basename "$ARTIFACT_DIR" "-${{ github.sha }}")
+            EXISTING=$(ls "${PLUGINS_DIR}/${PLUGIN}"*.jar 2>/dev/null | head -n1)
+            if [ -n "$EXISTING" ]; then
+              mv "$EXISTING" "$BACKUP_DIR/"
+            fi
+            cp "$ARTIFACT_DIR"*.jar "${PLUGINS_DIR}/"
+          done
+
+      - name: Restart Server
+        run: |
+          curl -sf -X POST "https://localhost:8443/api/v2/servers/${{ secrets.PROD_CRAFTY_SERVER_GUID }}/action/restart_server" \
+            -H "Authorization: Bearer ${{ secrets.PROD_CRAFTY_TOKEN }}" \
+            -k
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          ICON=$([ "${{ job.status }}" = "success" ] && echo "🚀" || echo "❌")
+          MSG="${ICON} **PROD** — \`${{ inputs.plugin }}\` | ${{ github.actor }} | [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
+          jq -n --arg content "$MSG" '{"content": $content}' | \
+            curl -X POST "${DISCORD_WEBHOOK}" \
+            -H "Content-Type: application/json" -d @-

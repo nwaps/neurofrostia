@@ -1,0 +1,135 @@
+zones:
+  # 3000x3000 grid centred at 0,0 — 3x3 layout, each sector 1000x1000
+  #
+  #          X: -1500→-500   X: -500→500   X: 500→1500
+  #  Z: -1500→-500  [ red  ]   [ blue  ]   [ purple ]
+  #  Z:  -500→500   [ green ]  [ yellow]   [ orange ]
+  #  Z:   500→1500  [ black ]  [ white ]   [ pink   ]
+
+  # Each zone can optionally define:
+  #   label:            Friendly display name for {label} in messages. Supports &colour codes.
+  #                     Defaults to the zone key (e.g. "red") if omitted.
+  #   message:          Overrides messages.respawn-player for this zone.
+  #   message-teleport: Overrides messages.teleport-player for this zone.
+  #   message-setzone:  Overrides messages.setzone-player for this zone.
+  #   All message fields support {zone_name}, {player}, {label}, and &colour codes.
+  #
+  # Example:
+  #   reimu:
+  #     ...
+  #     label: '&cReimu'
+  #     message: '&aYou respawned in {label}&a'"'"'s realm!'
+  #     message-teleport: '&aYou have been placed in {label}&a'"'"'s realm!'
+  #     message-setzone:  '&aYour zone is now {label}&a!"
+
+  reimu:
+    min-x: -1500
+    max-x: -500
+    min-z: -1500
+    max-z: -500
+    world: world
+    label: '&c&lReimu'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &c&l/zone&7 to select your respawn zone!"
+  sakuya:
+    min-x: -500
+    max-x: 500
+    min-z: -1500
+    max-z: -500
+    world: world
+    label: '&9&lSakuya'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &9&l/zone&7 to set your respawn zone!"
+  reisen:
+    min-x: 500
+    max-x: 1500
+    min-z: -1500
+    max-z: -500
+    world: world
+    label: '&5&lReisen'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &5&l/zone&7 to set your respawn zone!"
+  sanae:
+    min-x: -1500
+    max-x: -500
+    min-z: -500
+    max-z: 500
+    world: world
+    label: '&a&lSanae'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &a&l/zone&7 to set your respawn zone!"
+  ran:
+    min-x: -500
+    max-x: 500
+    min-z: -500
+    max-z: 500
+    world: world
+    label: '&e&lRan'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &e&l/zone&7 to set your respawn zone!"
+  meiling:
+    min-x: 500
+    max-x: 1500
+    min-z: -500
+    max-z: 500
+    world: world
+    label: '&6&lMeiling'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &6&l/zone&7 to set your respawn zone!"
+  marisa:
+    min-x: -1500
+    max-x: -500
+    min-z: 500
+    max-z: 1500
+    world: world
+    label: '&0&lMarisa'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &0&l/zone&7 to set your respawn zone!"
+  cirno:
+    min-x: -500
+    max-x: 500
+    min-z: 500
+    max-z: 1500
+    world: world
+    label: '&f&lCirno'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &f&l/zone&7 to set your respawn zone!"
+  lilywhite:
+    min-x: 500
+    max-x: 1500
+    min-z: 500
+    max-z: 1500
+    world: world
+    label: '&d&lLily White'
+    message-teleport: "» &7Welcome to {label}'s&7 zone! Run &d&l/zone&7 to set your respawn zone!"
+
+# How many times to attempt finding a safe location before giving up
+max-attempts: 50
+
+# Minimum Y level to consider a spawn valid (avoids underground spawns)
+min-y: 60
+
+# Fall back to zone's fixed EssentialsX spawn if no safe location found after max-attempts
+fallback-to-group-spawn: true
+
+# Whether to randomise on first zone selection (via /zonespawn teleport <player> <zone>)
+randomise-on-selection: true
+
+# Default group name for players with no zone assigned
+default-group: default
+
+# Title of the DeluxeMenus zone picker inventory — must match menu_title exactly (colour codes are stripped automatically)
+zone-picker-title: "Choose Your Spawn Zone"
+
+# Console command used to reopen the zone picker when a player closes it without picking a zone.
+# Player name is appended automatically. Must match your DeluxeMenus menu file name.
+zone-picker-reopen-command: "deluxemenus open ZonePickerFirstJoin"
+
+# Messages sent to players/senders — supports {zone_name} and {player} placeholders,
+# and standard Minecraft colour codes (&a, &e, etc.)
+messages:
+  # Sent to the player when /zonespawn teleport places them in a zone
+  teleport-player: "&aYou have been placed in the &e{zone_name}&a zone!"
+  # Sent to the command sender after a successful /zonespawn teleport
+  teleport-sender: "&aTeleported &f{player}&a to zone &e{zone_name}&a."
+  # Sent to the player when /zonespawn setzone sets their zone
+  setzone-player: "&aYour spawn zone has been set to &e{zone_name}&a!"
+  # Sent to the command sender after a successful /zonespawn setzone
+  setzone-sender: "&aZone set to &e{zone_name}&a for &f{player}&a."
+  # Sent to the player when they respawn in their assigned zone
+  respawn-player: "&aYou have respawned in the &e{zone_name}&a zone!"
+
+# Debug logging — disable in production
+debug: false

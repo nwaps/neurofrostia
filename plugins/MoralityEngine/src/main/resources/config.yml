@@ -1,0 +1,988 @@
+# MoralityEngine Configuration
+
+# Set to true to enable verbose debug logging in the server console.
+debug: false
+
+# Command aliases for the /morality player command.
+# Add extra entries to register additional aliases.
+commands:
+  morality-aliases:
+    - morality
+
+# ─── Morality Scoring ─────────────────────────────────────────────────────────
+morality:
+  # A player is NEUTRAL if their score is strictly within this range of 0.
+  # For example, with 100.0: scores from -100.0 (exclusive) to 100.0 (exclusive) are neutral.
+  # A score of exactly -100.0 is still neutral; bad tier 1 only activates below -100.0.
+  neutral-range: 100.0
+
+  # Optional morality decay applied when a player dies.
+  # When enabled, the score moves toward 0 by the configured amount on each death.
+  on-death:
+    enabled: false        # true = apply a morality penalty on death; false = score carries over unchanged
+    mode: percentage      # "percentage" removes a fraction of the score's magnitude toward 0
+                          # "flat" removes a fixed number of points toward 0
+    percentage: 50.0      # (mode: percentage) removes this % of the absolute score, moving it toward 0
+    flat: 100.0           # (mode: flat) removes this many points from the absolute score, moving toward 0
+
+  # Optional score cap. When enabled, scores cannot exceed max-good (positive) or go below max-bad (negative).
+  # Set enabled: false to allow scores to grow without limit.
+  cap:
+    enabled: false
+    max-good: 2000.0
+    max-bad: -2000.0
+
+  # Bad morality tier thresholds. A score must be STRICTLY BELOW the threshold to enter that tier.
+  # Tier 4 is reserved — no perks are defined yet but the structure is in place.
+  bad:
+    tier1-threshold: -100.0
+    tier2-threshold: -250.0
+    tier3-threshold: -500.0
+    tier4-threshold: -1000.0
+
+  # Good morality tier thresholds. A score must be STRICTLY ABOVE the threshold to enter that tier.
+  # Tier 4 is reserved — no perks are defined yet but the structure is in place.
+  good:
+    tier1-threshold: 100.0
+    tier2-threshold: 250.0
+    tier3-threshold: 500.0
+    tier4-threshold: 1000.0
+
+# ─── Bad Morality Progression Sources ─────────────────────────────────────────
+# Each source moves the player's score in the negative (bad) direction by the given points.
+bad-progress:
+  # Killing a neutral or good morality player.
+  kill-neutral-good-player:
+    points: 80.0
+    mode: flat          # "flat" deducts 'points'; "percentage" deducts 'percentage' % of the player's current score magnitude
+    percentage: 10.0    # (mode: percentage) percentage of the player's current morality score magnitude to deduct
+    enabled: true
+
+  # Killing the Golem Boss. Points are split evenly among all players who dealt damage.
+  kill-golem-boss:
+    points: 40.0
+    mode: flat
+    percentage: 5.0
+    enabled: true
+
+  # Killing a regular (non-boss) iron golem. Does not apply to the Golem Boss — that
+  # is handled separately above. Useful for discouraging players from destroying village
+  # defences. Disabled by default.
+  kill-iron-golem:
+    points: 20.0
+    mode: flat
+    percentage: 5.0
+    enabled: false
+
+  # Killing a villager (no flesh consumption required).
+  kill-villager:
+    points: 80.0
+    mode: flat
+    percentage: 10.0
+    enabled: true
+
+  # Killing a villager and consuming their dropped meat (rotten flesh from villager kill).
+  # Note: the flesh-consume check has no time limit — the marker persists until flesh is eaten.
+  kill-villager-consume:
+    points: 15.0
+    mode: flat
+    percentage: 5.0
+    enabled: true
+    # Number of rotten flesh items that can drop per villager kill.
+    flesh-drop-count: 1
+    # Probability (0.0–1.0) that each individual flesh item actually drops.
+    # Each of the flesh-drop-count items is rolled independently against this value.
+    flesh-drop-rate: 1.0
+
+  # Eating rotten flesh (any consumption, not just from a villager kill).
+  # This fires independently of kill-villager-consume — if both are enabled and a player
+  # kills a villager then eats the dropped flesh, only kill-villager-consume applies (the
+  # rotten-flesh-only penalty is skipped to avoid double-penalising that sequence).
+  # Disabled by default.
+  eat-rotten-flesh:
+    points: 5.0
+    mode: flat
+    percentage: 2.0
+    enabled: false
+
+  # Killing a passive mob from the whitelist below.
+  # Only mob types listed under 'mobs' will trigger the penalty.
+  # Default list contains passive mobs with no useful drops — purely harmless creatures
+  # that serve no loot purpose. Add or remove entries to customise what counts as wanton killing.
+  # Note: VILLAGER and IRON_GOLEM have their own dedicated sections above and should not
+  # be added here (they would double-penalise). Disabled by default.
+  kill-passive-mob:
+    points: 20.0
+    mode: flat
+    percentage: 5.0
+    enabled: false
+    mobs:
+      - BAT        # no drops
+      - CAT        # no drops
+      - FOX        # no natural drops
+      - FROG       # no drops
+      - OCELOT     # no drops
+      - SNIFFER    # no drops
+      - TADPOLE    # no drops
+
+  # Activating a Totem of Dying (the custom totem — not the vanilla Totem of Undying).
+  pop-totem-of-dying:
+    points: 40.0
+    mode: flat
+    percentage: 5.0
+    enabled: true
+
+# ─── Good Morality Progression Sources ────────────────────────────────────────
+# Each source moves the player's score in the positive (good) direction by the given points.
+good-progress:
+  # Killing a bad morality player.
+  kill-bad-player:
+    points: 80.0
+    mode: flat          # "flat" adds 'points'; "percentage" adds 'percentage' % of the player's current score magnitude
+    percentage: 10.0    # (mode: percentage) percentage of the player's current morality score magnitude to add
+    enabled: true
+
+  # Killing an undead mob (zombies, skeletons, phantoms, etc.).
+  kill-undead:
+    points: 15.0
+    mode: flat
+    percentage: 3.0
+    enabled: true
+
+  # Being within range of good morality players on a repeating interval.
+  # Each qualifying interval grants points regardless of how many good players are nearby.
+  near-good-players:
+    points: 5.0
+    mode: flat
+    percentage: 1.0
+    interval-seconds: 60   # How often the proximity check fires (in seconds).
+    range-blocks: 30        # Block radius within which a good morality player must be present.
+    enabled: true
+
+  # Earning the Hero of the Village effect (from defeating a raid).
+  hero-of-village:
+    points: 80.0
+    mode: flat
+    percentage: 10.0
+    enabled: true
+
+# ─── Bad Morality Tier Perks ──────────────────────────────────────────────────
+# Each perk uses a "tiers" map. A perk is active only on the tier numbers listed.
+# Omitting a tier disables the perk at that tier.
+# Tiers 3 and 4 are reserved — add entries here when perks are defined.
+bad-perks:
+  # Tier 1: Eating rotten flesh has no hunger penalty or negative effects.
+  no-rotten-flesh-penalty:
+    tiers:
+      1:
+        enabled: true
+
+  # XP multiplier applied on top of CoreLife's base killer-reward-base when killing a player.
+  # The base is calibrated to give ~50 levels from 0 at 1.0×.
+  # Bad player killing is designed to be their primary XP source; they receive no XP from undead.
+  bonus-player-kill-xp:
+    tiers:
+      1:
+        multiplier: 1.5
+      2:
+        multiplier: 2.0
+      3:
+        multiplier: 2.5
+      4:
+        multiplier: 3.0
+
+  # Tier 1: Listed passive mobs flee the player on sight and turn aggressive when attacked.
+  # Add or remove entity type names from the mobs list to change which mobs are affected.
+  passive-mob-flee-aggro:
+    tiers:
+      1:
+        enabled: true
+    # Pathfinding speed multiplier applied while fleeing (1.0 = normal walk speed).
+    flee-speed: 1.0
+    # How many blocks away from the player the mob tries to pathfind when fleeing.
+    flee-distance-blocks: 8
+    mobs:
+      - ARMADILLO
+      - CAMEL
+      - COW
+      - DONKEY
+      - HORSE
+      - MOOSHROOM
+      - MULE
+      - PIG
+      - RABBIT
+      - SHEEP
+
+  # Tier 1: Iron golems are always hostile to this player regardless of village reputation.
+  iron-golem-aggro:
+    tiers:
+      1:
+        enabled: true
+
+  # Tier 1: Pillagers do not aggro the player unless directly provoked.
+  # grants-good-morality-on-kill: killing a provoked pillager does NOT grant good morality.
+  # suppress-vanilla-xp / suppress-corelife-xp: no XP is awarded for pillager kills.
+  # These three flags are global (not per-tier).
+  pillager-neutral:
+    tiers:
+      1:
+        enabled: true
+    grants-good-morality-on-kill: false
+    suppress-vanilla-xp: true
+    suppress-corelife-xp: true
+
+  # Tier 1: Undead mobs do not aggro the player unless directly provoked.
+  # Same global flags as pillager-neutral apply here.
+  undead-neutral:
+    tiers:
+      1:
+        enabled: true
+    grants-good-morality-on-kill: false
+    suppress-vanilla-xp: true
+    suppress-corelife-xp: true
+
+  # Controls vanilla zombie reinforcement spawning near bad morality players.
+  # In Hard mode, zombies that take damage can spawn additional zombies nearby.
+  # enabled: false — suppresses reinforcements entirely for any bad player within 32 blocks.
+  # Per-tier max-count: how many reinforcements may spawn near that player within a rolling
+  # 30-second window. -1 = unlimited (vanilla behaviour). 0 = none.
+  zombie-reinforcements:
+    enabled: true
+    tiers:
+      1:
+        max-count: 0   # no reinforcements at bad tier 1
+      2:
+        max-count: 2
+      3:
+        max-count: 4
+      4:
+        max-count: -1  # unlimited at bad tier 4 (vanilla)
+
+  # Tier 1+: Bad morality players can right-click a zombie with shears to harvest rotten flesh.
+  # Each shear yields flesh-per-shear items. Once max-flesh-per-zombie flesh has been harvested
+  # from a single zombie it transforms into a skeleton, inheriting whatever equipment the
+  # zombie was carrying (armour, sword, etc.). Naked zombies become naked skeletons.
+  zombie-shear:
+    tiers:
+      1:
+        enabled: true
+    # Rotten flesh dropped per shear interaction.
+    flesh-per-shear: 1
+    # Total flesh that can be harvested from one zombie before it converts into a skeleton.
+    max-flesh-per-zombie: 3
+
+  # Tier 2: Giving a horse a Totem of Dying converts it into a zombie horse or skeleton horse.
+  zombie-horse-conversion:
+    tiers:
+      2:
+        enabled: true
+
+  # Tier 2: Villagers raise trade prices for this player.
+  villager-price-increase:
+    tiers:
+      2:
+        enabled: true
+
+  # Tier 1: Villagers refuse to open a trade GUI with this player.
+  # Bad players must instead trade with witches (see witch-neutral below).
+  villager-trade-blocked:
+    tiers:
+      1:
+        enabled: true
+
+  # Tier 1+: Witches do not aggro bad players, and right-clicking a witch opens
+  # a special dark-market trade GUI with potion and alchemy goods.
+  # Each time the GUI opens, pool-size trades are randomly drawn (weighted by
+  # 'weight') from the trades list below, filtered to entries whose
+  # min-bad-tier is ≤ the player's current bad tier.
+  # Higher tiers unlock additional trades and see a larger pool.
+  witch-neutral:
+    tiers:
+      1:
+        enabled: true
+        pool-size: 6   # trades shown at bad tier 1
+      2:
+        pool-size: 7   # trades shown at bad tier 2
+      3:
+        pool-size: 8   # trades shown at bad tier 3
+      4:
+        pool-size: 8   # trades shown at bad tier 4
+
+    # ── Trade pool ──────────────────────────────────────────────────────────
+    # type        : "potion", "splash_potion", or a Bukkit Material name.
+    # potion      : PotionType name — only used when type is potion/splash_potion.
+    # amount      : result item count (ignored for potions, which are always 1).
+    # cost        : emerald cost.
+    # max-uses    : how many times this trade can be used before it locks.
+    # min-bad-tier: lowest bad tier that can see this trade (1–4).
+    # weight      : relative probability of being selected; higher = more common.
+    trades:
+      # ── Tier 1 trades (all bad players) ───────────────────────────────────
+      - type: potion
+        potion: FIRE_RESISTANCE
+        amount: 1
+        cost: 4
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 10
+      - type: potion
+        potion: SWIFTNESS
+        amount: 1
+        cost: 3
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 10
+      - type: potion
+        potion: STRENGTH
+        amount: 1
+        cost: 4
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 8
+      - type: potion
+        potion: NIGHT_VISION
+        amount: 1
+        cost: 2
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 10
+      - type: potion
+        potion: INVISIBILITY
+        amount: 1
+        cost: 5
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 6
+      - type: potion
+        potion: HEALING
+        amount: 1
+        cost: 3
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 8
+      - type: potion
+        potion: REGENERATION
+        amount: 1
+        cost: 4
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 8
+      - type: splash_potion
+        potion: POISON
+        amount: 1
+        cost: 4
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 8
+      - type: splash_potion
+        potion: WEAKNESS
+        amount: 1
+        cost: 3
+        max-uses: 12
+        min-bad-tier: 1
+        weight: 8
+      - type: GUNPOWDER
+        amount: 4
+        cost: 2
+        max-uses: 16
+        min-bad-tier: 1
+        weight: 8
+      - type: SPIDER_EYE
+        amount: 4
+        cost: 1
+        max-uses: 16
+        min-bad-tier: 1
+        weight: 8
+      - type: GLASS_BOTTLE
+        amount: 8
+        cost: 1
+        max-uses: 16
+        min-bad-tier: 1
+        weight: 6
+      # ── Tier 2 trades (unlocked at bad tier 2+) ───────────────────────────
+      - type: splash_potion
+        potion: HARMING
+        amount: 1
+        cost: 5
+        max-uses: 12
+        min-bad-tier: 2
+        weight: 8
+      - type: splash_potion
+        potion: SLOWNESS
+        amount: 1
+        cost: 3
+        max-uses: 12
+        min-bad-tier: 2
+        weight: 8
+      - type: FERMENTED_SPIDER_EYE
+        amount: 2
+        cost: 2
+        max-uses: 16
+        min-bad-tier: 2
+        weight: 6
+      # ── Tier 3 trades (unlocked at bad tier 3+) ───────────────────────────
+      - type: WITHER_ROSE
+        amount: 2
+        cost: 3
+        max-uses: 8
+        min-bad-tier: 3
+        weight: 5
+      - type: splash_potion
+        potion: TURTLE_MASTER
+        amount: 1
+        cost: 6
+        max-uses: 8
+        min-bad-tier: 3
+        weight: 5
+
+  # Tier 1+: A wraith (phantom) companion follows bad players around.
+  # The wraith will NOT attack its owner or any bad/neutral player.
+  # If a good-morality player comes within attack-range-blocks, the wraith
+  # will target and attack them. The wraith despawns when the owner logs out
+  # or their morality improves past the configured tier.
+  wraith-follower:
+    enabled: true
+    # Minimum bad tier required to gain a wraith (1–4).
+    min-bad-tier: 1
+    # Radius in which the wraith will seek out and attack good players.
+    attack-range-blocks: 16.0
+    # If the wraith drifts farther than this from its owner it will teleport back.
+    teleport-range-blocks: 48.0
+    # Ticks the player must have gone without sleeping before a wraith spawns.
+    # Matches vanilla phantom behaviour: 72000 ticks = 3 in-game days.
+    # Set to 0 to skip the sleep-deprivation check entirely.
+    min-sleep-deprivation-ticks: 72000
+
+# ─── Good Morality Tier Perks ─────────────────────────────────────────────────
+# Same "tiers" map structure as bad-perks. Tier 4 is reserved.
+good-perks:
+  # Bonus animals spawned from husbandry activities (breeding, etc.).
+  # Tier 1 spawns 1 extra animal; tier 2 spawns 2 extra animals.
+  bonus-husbandry-spawns:
+    tiers:
+      1:
+        bonus-count: 1
+      2:
+        bonus-count: 2
+
+  # XP multiplier applied to husbandry-related XP gains.
+  # Tier 2 gives 1.5×, tier 3 gives 2.0× husbandry XP.
+  bonus-husbandry-xp:
+    tiers:
+      2:
+        multiplier: 1.5
+      3:
+        multiplier: 2.0
+
+  # Tier 3: Villagers offer improved trade prices and unlock better trades for this player.
+  better-villager-trades:
+    tiers:
+      3:
+        enabled: true
+
+# ─── Villager Reactions ───────────────────────────────────────────────────────
+# Villagers react to bad morality players with escalating hostility as tier increases.
+# See grandspec section 7 for full behavioural descriptions.
+villager-reactions:
+  # Bad tier at which villagers begin fleeing the player on sight.
+  flee-trigger-tier: 1
+
+  # Block radius within which a villager detects and flees the player.
+  flee-radius-blocks: 16
+
+  # Pathfinding speed multiplier applied while fleeing (1.0 = normal walk speed).
+  flee-speed: 1.0
+
+  # How many blocks away from the player the villager tries to pathfind when fleeing.
+  flee-distance-blocks: 8
+
+  # Bad tier at which an attacked villager broadcasts for nearby help (golems + other villagers).
+  call-for-help-trigger-tier: 1
+
+  # Radius of the help broadcast. Golems within this range aggro the attacker immediately.
+  call-for-help-radius-blocks: 32
+
+  # Bad tier at which village-native villagers enter defend mode when called for help.
+  # A villager is "village-native" if it is within village-native-radius-blocks of a village centre.
+  defend-trigger-tier: 2
+
+  # Item given to villagers entering defend mode. Use a valid Material name (e.g. IRON_SWORD).
+  defend-weapon: "IRON_AXE"
+
+  # Potion effects applied to defending villagers. Format: EFFECT_TYPE:amplifier (0-indexed amplifier).
+  # Example: STRENGTH:1 = Strength II in-game, REGENERATION:0 = Regeneration I.
+  # Add or remove lines to give villagers any combination of effects when they enter combat.
+  defend-potion-effects:
+    - STRENGTH:1
+    - REGENERATION:0
+
+  # Seconds defending villagers remain armed before returning to normal behaviour.
+  defend-duration-seconds: 30
+
+  # Seconds after the last successful hit before a pursuing villager gives up and returns to normal.
+  defend-chase-timeout-seconds: 15
+
+  # Maximum distance (in blocks) a villager will chase before giving up.
+  # Measured from the villager's location when it first entered combat.
+  defend-max-chase-distance: 24
+
+  # Maximum distance from a village centre (POI-based) for a villager to be eligible for defend mode.
+  # Villagers outside this radius will still flee but will not arm themselves.
+  village-native-radius-blocks: 64
+
+# ─── Totem of Dying ───────────────────────────────────────────────────────────
+# The Totem of Dying is a custom item dropped by the Golem Boss.
+# It must be combined with a piece of armour (in an anvil or crafting table) before it activates.
+# On fatal damage, the armour piece triggers: the player is restored to restore-health,
+# morality score advances by pop-totem-of-dying.points, and an undead transformation begins.
+totem-of-dying:
+  # Drop chance from the Golem Boss (0.0 = never, 1.0 = always).
+  drop-rate: 0.25
+
+  # How long the undead transformation lasts (in minutes) after the totem activates.
+  # During transformation the player: takes extra Smite damage, cannot benefit from Regen/Poison,
+  # burns in sunlight, and has Night Vision I, Hunger I, Resistance I, and Haste I.
+  transformation-duration-minutes: 40
+
+  # Health (in half-hearts) restored to the player when the totem activates.
+  restore-health: 4.0
+
+  # Custom model data integer applied to the Totem of Dying item.
+  # Set to any non-zero integer and add a matching predicate in your resource pack
+  # (under assets/minecraft/models/item/totem_of_undying.json) to give it a unique sprite.
+  # Set to 0 to disable (item will look like a vanilla Totem of Undying).
+  custom-model-data: 0
+
+  # How the totem is combined with armour: "anvil" or "crafting".
+  combine-method: "anvil"
+
+  # Experience level cost charged when combining the totem with armour in an anvil.
+  # Set to 0 to make the combination free.
+  anvil-repair-cost: 5
+
+  # Display name shown on the resulting combined armour piece.
+  combined-item-name: "Cursed Armour"
+
+  # Lore line shown on the resulting combined armour piece.
+  combined-item-lore: "Death is not the end."
+
+# ─── Totem of Undying ─────────────────────────────────────────────────────────
+# Modifies vanilla Totem of Undying behaviour.
+totem-of-undying:
+  # Drop chance for each totem rolled on an eligible Evoker kill (0.0–1.0).
+  drop-rate: 1.0
+
+  # Number of totems that can drop per Evoker kill. Each is rolled against drop-rate individually.
+  drop-count: 1
+
+  # If true, suppresses the vanilla Evoker totem drop and routes all drops through drop-rate above.
+  disable-vanilla-drop: true
+
+  # If true, bad morality players cannot activate the Totem of Undying — it does not trigger and is not consumed.
+  bad-morality-unusable: true
+
+  # If true, Evokers killed by a bad morality player will not drop a totem at all.
+  no-drop-on-bad-morality-kill: true
+
+# ─── Village Golem Enhancement ────────────────────────────────────────────────
+# Enhances naturally-spawned village golems (VILLAGE_GOLEM) and player-built golems
+# (BUILD_IRONGOLEM) with the same stats as the Golem Boss and a wind surge ability.
+# Stats are read directly from the golem-boss section so they stay in sync automatically.
+village-golem:
+  # Set to false to disable all enhancements — golems spawn with vanilla stats and no wind surge.
+  enabled: true
+
+  # Velocity multiplier applied to the wind surge knockback.
+  # Higher values knock the player farther.  Vanilla-feel range: 1.5–3.0.
+  wind-surge-power: 2.5
+
+  # Seconds between consecutive wind surges from the same golem.
+  # Prevents the player from being permanently airborne when standing in a hard-to-reach spot.
+  wind-surge-cooldown-seconds: 8
+
+  # Distance threshold (in blocks) used to detect partial pathfinding routes.
+  # If the golem can find a path but its terminal point is farther than this value from the
+  # player's actual location, the path is treated as blocked and wind surge is triggered.
+  # Raise this if surge fires too aggressively on multi-block height differences;
+  # lower it if golems feel too passive near ledges.
+  wind-surge-path-threshold: 3.0
+
+# ─── Golem Boss ───────────────────────────────────────────────────────────────
+# The Golem Boss is spawned by placing three villager heads in the Wither-skull pattern
+# on top of spawn-block blocks. The blocks and heads are consumed on spawn.
+golem-boss:
+  # Set to false to disable the Golem Boss entirely. The spawn pattern will not trigger
+  # and /moralityadmin spawnboss will do nothing. Villager head drops are unaffected.
+  enabled: true
+
+  # Block type used as the base of the Wither-pattern. Must be a valid Material name.
+  spawn-block: "OBSIDIAN"
+
+  # Boss max health (in half-hearts).
+  health: 200.0
+
+  # Boss melee attack damage (in half-hearts).
+  attack-damage: 15.0
+
+  # Boss movement speed attribute value. Vanilla iron golem default is 0.25.
+  movement-speed: 0.35
+
+  # Potion effects applied to the boss on spawn. Format: EFFECT_TYPE:amplifier (0-indexed).
+  effects:
+    - RESISTANCE:1
+    - STRENGTH:1
+
+  # Drop chance for a Totem of Dying on boss death (0.0–1.0). Separate from totem-of-dying.drop-rate.
+  totem-drop-rate: 1.0
+
+  # Minutes that must elapse after the boss dies before a new one can be spawned.
+  # Set to 0 to disable the cooldown entirely (boss can be re-spawned immediately).
+  respawn-cooldown-minutes: 0
+
+  # Block radius within which the Golem Boss will actively target bad morality players.
+  # The boss re-evaluates its target every second within this range.
+  aggro-range-blocks: 48
+
+# ─── Villager Head Drop ───────────────────────────────────────────────────────
+villager:
+  # Chance a villager drops their head on death (0.0–1.0).
+  # Villager heads are required to spawn the Golem Boss and act as the primary limiter on boss frequency.
+  head-drop-rate: 0.05
+
+  # Skull texture hash for the villager head item.
+  # This is the hash portion of the skin URL from textures.minecraft.net.
+  # To get a value: go to minecraft-heads.com, find a villager head, and copy the hash
+  # from the "Minecraft-URL" field (everything after "/texture/").
+  # Leave empty to use the default player head appearance.
+  head-texture-hash: "ffa9b5a8a998c60d57f60e8e25beb7ca5e9b6db32ae53bf56c197e456a9dd750"
+
+# ─── Morality Compass ─────────────────────────────────────────────────────────
+# The Morality Compass is a craftable item usable only by bad morality players.
+# Basic mode (tiers 1–basic-tier-max): right-click records the nearest good player's location;
+#   the compass points to that snapshot until right-clicked again.
+# Advanced mode (tiers advanced-tier-min+): continuously tracks the nearest good player in real time.
+# The compass does not track across dimensions.
+compass:
+  # Highest bad tier that uses basic (snapshot) compass behaviour.
+  basic-tier-max: 2
+
+  # Lowest bad tier that uses advanced (continuous tracking) compass behaviour.
+  advanced-tier-min: 3
+
+  # Total uses before the compass breaks.
+  max-uses: 100
+
+  # Uses consumed per right-click in basic mode.
+  basic-uses-per-click: 10
+
+  # Uses consumed per tracking update in advanced mode.
+  advanced-uses-per-update: 1
+
+  # Tick interval at which the advanced compass refreshes its target.
+  advanced-update-ticks: 20
+
+  # Crafting recipe for the compass. Use '_' for empty slots.
+  # Map each letter to a Material name under ingredients.
+  recipe:
+    row1: "_G_"
+    row2: "GCG"
+    row3: "_G_"
+    ingredients:
+      G: "GOLD_INGOT"
+      C: "COMPASS"
+
+# ─── Player Locator Bar ───────────────────────────────────────────────────────
+# Good morality players see the nearest bad morality player on the 1.21.5+ vanilla locator bar.
+# The bar is one-way — bad players use the compass instead.
+# If no bad player exists in the same dimension the bar is hidden entirely.
+locator-bar:
+  # Tick interval at which the locator bar target is refreshed.
+  update-ticks: 20
+
+  # Distance thresholds (in blocks) that control the distance label shown alongside the indicator.
+  # Beyond range-far-blocks only the direction indicator is shown (no label).
+  range-very-close-blocks: 20
+  range-nearby-blocks: 80
+  range-far-blocks: 200
+
+  # Label text shown for each distance bracket.
+  label-very-close: "Very Close"
+  label-nearby: "Nearby"
+  label-far: "Far"
+
+# ─── Frost Vignette ───────────────────────────────────────────────────────────
+# A freeze/powder-snow screen overlay applied to all players during enabled phases.
+# Intensity scales linearly with the ratio of bad morality players to total active players.
+# Active players: ≥ 1 life, logged in within active-player-window-days, not spectating.
+frost:
+  # Phases in which the frost vignette is active. Valid values: OVERWORLD, NETHER, END.
+  enabled-phases: []
+
+  # Bad-player ratio at which the vignette first appears (0.0–1.0).
+  # Below this threshold the vignette is fully off.
+  start-threshold: 0.5
+
+  # Bad-player ratio at which the vignette reaches maximum intensity (0.0–1.0).
+  # Between start-threshold and max-threshold intensity scales linearly.
+  max-threshold: 1.0
+
+  # Tick interval for recalculating the ratio and applying the vignette effect.
+  update-ticks: 100
+
+# ─── Morality HUD ─────────────────────────────────────────────────────────────
+morality-hud:
+  # Action bar display shown above the hotbar for all players.
+  action-bar:
+    enabled: true
+
+    # Tick interval at which the action bar line is refreshed.
+    update-ticks: 20
+
+    # If true, the action bar is shown to all players at all times.
+    # If false, the action bar is only shown for display-seconds after right-clicking the Morality Mirror.
+    permanent: true
+
+    # Format string for the action bar. Supported placeholders:
+    #   {tier}           — current morality tier name (e.g. BAD_1, NEUTRAL, GOOD_2)
+    #   {score}          — current numeric morality score
+    #   {next-threshold} — points to the next tier boundary in either direction
+    format: "Morality: {tier} ({score})"
+
+    # Text colour applied to the tier name in the action bar for each tier.
+    # Also controls the glass pane colour of the Morality Mirror item.
+    # Uses Bukkit ChatColor names. Change to customise per-tier colouring.
+    tier-colors:
+      BAD_4: DARK_RED
+      BAD_3: DARK_RED
+      BAD_2: RED
+      BAD_1: GOLD
+      NEUTRAL: WHITE
+      GOOD_1: YELLOW
+      GOOD_2: GREEN
+      GOOD_3: GREEN
+      GOOD_4: DARK_GREEN
+
+  # Morality Mirror: a craftable glass pane item that changes color based on morality tier.
+  # Right-clicking triggers the action bar display.
+  morality-mirror:
+    enabled: true
+
+    # Seconds the action bar remains visible after right-clicking the mirror.
+    # Only used when action-bar.permanent is false.
+    display-seconds: 5
+
+    # Crafting recipe for the mirror. Use '_' for empty slots.
+    # Map each letter to a Material name under ingredients.
+    recipe:
+      row1: "_G_"
+      row2: "GPG"
+      row3: "_G_"
+      ingredients:
+        G: "GOLD_INGOT"
+        P: "GLASS_PANE"
+
+# ════════════════════════════════════════════════════════════════════════════════
+# COMMAND REFERENCE
+# All admin commands require the moralityengine.admin permission (default: op).
+# Tab-completion is supported for all subcommands and player name arguments.
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# ── /moralityadmin <subcommand> [arguments] ──────────────────────────────────────
+#
+#   SCORE AND TIER MANAGEMENT
+#     /moralityadmin setscore <player> <score>
+#       Set a player's morality score to an exact value.
+#       The tier is recalculated immediately and the XP multiplier is
+#       updated in CoreLife.
+#
+#     /moralityadmin addscore <player> <delta>
+#       Add or subtract points from a player's score.
+#       Negative delta values push the score toward bad morality.
+#       Example: addscore Bob -80  (simulates one neutral/good player kill)
+#
+#     /moralityadmin resetscore <player>
+#       Reset a single player's score to 0 (NEUTRAL).
+#
+#     /moralityadmin resetall
+#       Reset every player's morality score to 0.
+#       Intended for use at season start. XP multipliers for all online
+#       players are refreshed automatically.
+#
+#     /moralityadmin settier <player> <tier>
+#       Set a player's score to just inside the named tier
+#       (1 point beyond the threshold in the appropriate direction).
+#       Valid tier names: bad1, bad2, bad3, bad4, neutral, good1, good2, good3, good4
+#       Example: settier Alice bad2
+#
+#   PLAYER LISTING
+#     /moralityadmin list
+#       List all online players with their current tier and score.
+#
+#     /moralityadmin list bad
+#       List only online players currently in a bad morality tier.
+#
+#     /moralityadmin list good
+#       List only online players currently in a good morality tier.
+#
+#     /moralityadmin list neutral
+#       List only online players who are currently neutral.
+#
+#   GOLEM BOSS
+#     /moralityadmin bossinfo
+#       Show whether a Golem Boss is currently alive, and if not, how long
+#       until the respawn cooldown (golem-boss.respawn-cooldown-minutes) expires.
+#
+#     /moralityadmin spawnboss
+#       Force-spawn a Golem Boss at your current location, bypassing the
+#       cooldown and any existing boss check. Must be run as a player (not console).
+#
+#     /moralityadmin resetcooldown
+#       Reset the Golem Boss respawn cooldown to zero so the boss can be
+#       spawned immediately via the pattern or /moralityadmin spawnboss.
+#
+#   ITEM SPAWNING
+#     /moralityadmin givetotem <player> <dying|undying>
+#       Give a player a totem.
+#         dying   — the custom Totem of Dying (normally dropped by the Golem Boss)
+#         undying — a vanilla Totem of Undying
+#
+#     /moralityadmin givehead <player> [count]
+#       Give a player one or more villager heads (used in the boss spawn pattern).
+#       Count defaults to 1, maximum 64.
+#       Useful for testing boss spawning without needing to kill villagers.
+#
+#   FROST VIGNETTE
+#     /moralityadmin froststatus
+#       Show the current phase, whether the frost vignette is active,
+#       the current bad-player ratio among online players, and the
+#       resulting intensity percentage.
+#       Note: the vignette only applies during phases listed in frost.enabled-phases.
+#
+#   ANALYTICS
+#     /moralityadmin analytics server
+#       Show server-wide totals for every morality change reason that has at
+#       least one recorded event, sorted by absolute point impact.
+#       Includes net server drift: positive = the server is trending good,
+#       negative = trending bad.
+#
+#     /moralityadmin analytics player <name>
+#       Show per-player totals for a specific online player, with the same
+#       per-reason breakdown and a net score line.
+#       The target player must be online (offline lookup is not supported).
+#
+#     /moralityadmin analytics reset
+#       Clear all in-memory aggregates and delete analytics.json from the
+#       plugin data folder. This cannot be undone.
+#
+#     /moralityadmin analytics export
+#       Write every individual recorded change to a timestamped CSV file in
+#       the plugin data folder (e.g. analytics-export-1709000000000.csv).
+#       Columns: uuid, reason, delta, new_score, timestamp_ms
+#       The source log file (analytics.json) is not modified or deleted.
+#
+#   CONFIG
+#     /moralityadmin reload
+#       Reload config.yml without restarting the server.
+#       XP multipliers for all online players are refreshed automatically.
+#
+# ── /morality [player] ───────────────────────────────────────────────────────────
+#   Show your own current score, tier, and distance to adjacent tier thresholds.
+#   Providing a player name shows that player's morality info instead —
+#   looking up another player requires moralityengine.admin.
+#   The command name is controlled by commands.morality-aliases above.
+#   Requires: moralityengine.use (default: true) for self-lookup
+#             moralityengine.admin for looking up other players
+#
+# ── PERMISSIONS ──────────────────────────────────────────────────────────────────
+#   moralityengine.admin  (default: op)   — all /moralityadmin subcommands
+#                                           and /morality <player> lookups
+#   moralityengine.use    (default: true) — /morality self-lookup
+#
+# ════════════════════════════════════════════════════════════════════════════════
+# CUSTOM ITEM VISUALS
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# ── Villager Head texture ─────────────────────────────────────────────────────
+#
+# The villager head is internally a PLAYER_HEAD item. Without a texture set it
+# renders as the default Steve skin. You can give it the real villager appearance
+# without a resource pack by supplying a skull texture hash.
+#
+# HOW TO GET THE HASH
+#   1. Go to https://minecraft-heads.com and search for a villager head.
+#   2. Open the head's page and click the "Other" tab.
+#   3. Find the "Minecraft-URL" field — it looks like:
+#        http://textures.minecraft.net/texture/<hash>
+#   4. Copy the long hex/base64 string after the final "/".
+#   5. Paste it into villager.head-texture-hash in this file.
+#   Villager - http://textures.minecraft.net/texture/ffa9b5a8a998c60d57f60e8e25beb7ca5e9b6db32ae53bf56c197e456a9dd750
+#
+# The plugin builds the full URL at runtime:
+#   http://textures.minecraft.net/texture/<your hash>
+#
+# If the field is left empty the head falls back to the default player head look.
+#
+# ── Totem of Dying custom sprite ─────────────────────────────────────────────
+#
+# The Totem of Dying uses TOTEM_OF_UNDYING as its base material, so without
+# extra work it looks identical to the vanilla totem. Giving it a distinct sprite
+# requires two parts:
+#
+#   PART 1 — set totem-of-dying.custom-model-data to a unique integer (e.g. 1001).
+#             The plugin stamps this number onto every Totem of Dying it creates.
+#
+#   PART 2 — create a resource pack that maps that integer to a custom model.
+#             In your resource pack, edit (or create):
+#               assets/minecraft/models/item/totem_of_undying.json
+#             and add an override predicate:
+#
+#               {
+#                 "parent": "item/generated",
+#                 "textures": { "layer0": "item/totem_of_undying" },
+#                 "overrides": [
+#                   {
+#                     "predicate": { "custom_model_data": 1001 },
+#                     "model": "item/totem_of_dying"
+#                   }
+#                 ]
+#               }
+#
+#             Then place your custom texture at:
+#               assets/minecraft/textures/item/totem_of_dying.png
+#             and a matching model file at:
+#               assets/minecraft/models/item/totem_of_dying.json
+#
+# PNG CONSTRAINTS
+#   - Format: PNG with an alpha (transparency) channel (RGBA).
+#   - Dimensions: must be a power of 2. 16×16 is the standard Minecraft item
+#     texture size and recommended for consistency with vanilla. Larger sizes
+#     (32×32, 64×64, etc.) are supported by the client but increase pack size
+#     and may look blurry when scaled down in the inventory grid.
+#   - The image is mapped as a flat sprite ("item/generated" parent), so it
+#     is displayed as a 2D item — the same as the vanilla totem of undying.
+#     No 3D model work is required unless you want a held/dropped 3D model.
+#
+# DISTRIBUTING THE PACK VIA server.properties
+#   Players must have the pack loaded for the custom sprite to appear.
+#   The easiest approach is to host the pack as a ZIP file (e.g. on a CDN or
+#   file host that returns a direct-download URL) and point server.properties
+#   at it. Example entries to add/update in server.properties:
+#
+#     # Direct-download URL to your resource pack ZIP.
+#     resource-pack=https://example.com/packs/moralityengine-pack.zip
+#
+#     # SHA-1 hash of the ZIP file (40 hex chars). Clients use this to skip
+#     # re-downloading if they already have the current version cached.
+#     # Generate it with: sha1sum moralityengine-pack.zip
+#     resource-pack-sha1=0000000000000000000000000000000000000000
+#
+#     # Message shown in the pack-acceptance prompt (supports colour codes).
+#     resource-pack-prompt=Please accept the server resource pack.
+#
+#     # Set to true to kick players who decline the pack.
+#     require-resource-pack=false
+#
+#   After editing server.properties, restart the server (not just /reload).
+#   Players who join will be prompted to download the pack automatically.
+#
+# Set custom-model-data to 0 to disable (item looks like a vanilla totem).

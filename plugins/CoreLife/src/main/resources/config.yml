@@ -1,0 +1,321 @@
+# CoreLife Configuration
+
+# Set to true to enable verbose debug logging in the server console.
+debug: false
+
+# Command aliases for the /lives player command.
+# Add extra entries to register additional aliases, e.g. "lifes".
+commands:
+  lives-aliases:
+    - lives
+
+# ─── Life System ──────────────────────────────────────────────────────────────
+lives:
+  # Lives given to each new player the first time they join.
+  starting-lives: 1
+
+  # Maximum lives a player can accumulate (from rollover, admin grants, or trading).
+  # Set to 0 to disable the cap and allow unlimited accumulation.
+  max-lives: 10
+
+  # If true, only deaths caused by another player (PvP) cost a life.
+  # If false, any death (mobs, fall, etc.) costs a life.
+  pvp-only: false
+
+  # Hours between automatic life rollover events. Timing aligns to interval boundaries
+  # from Unix epoch, so it is consistent across server restarts.
+  # Examples: 6 = every 6 hours (0:00/6:00/12:00/18:00 UTC), 24 = every midnight UTC,
+  #           168 = weekly (same weekday/time each week in UTC).
+  rollover-interval-hours: 6
+
+  # Maximum lives a player can accumulate specifically from rollover.
+  # 0 = fall back to max-lives. Set this lower than max-lives to let in-game events
+  # (trading, admin grants) push players higher than rollover ever will.
+  # Example: rollover-max-lives: 3, max-lives: 5 — a player at 4 lives earned in-game
+  # won't get a free rollover life, but a player at 2 lives will (up to 3 via rollover).
+  rollover-max-lives: 3
+
+  # Minimum minutes a player must have been online since the last rollover to earn
+  # a rollover life. Only applies to players who already have ≥ 1 life.
+  # Death-banned players are always unbanned and restored to 1 life regardless.
+  # 0 = no minimum required.
+  rollover-min-play-minutes: 30
+
+  # Alternative: set the minimum as a percentage of the rollover interval instead.
+  # Overrides rollover-min-play-minutes when > 0.
+  # Example: 25 with a 24h interval = must play 6 hours per rollover period.
+  rollover-min-play-percent: 0
+
+  # Message shown on join when the player hasn't yet met the playtime requirement
+  # for the current rollover period. Leave blank to disable.
+  # Variables: {played}         = minutes played this period
+  #            {required}       = minutes required this period
+  #            {next_rollover}  = UTC datetime of the next rollover
+  rollover-status-message: "&7Rollover progress: &e{played}&7/&e{required} &7min played. Next rollover: &e{next_rollover}&7."
+
+  # One-time message shown the next time a player logs in after missing a rollover
+  # due to insufficient playtime. Clears after being shown once. Leave blank to disable.
+  # Variables: {required} = minutes required, {next_rollover} = next UTC rollover time
+  rollover-missed-message: "&cYou missed the last life rollover — you needed &e{required} &cmin of playtime. Next rollover: &e{next_rollover}&c."
+
+  # Message sent in-game when a rollover fires and an online player didn't meet the
+  # playtime requirement for this period.
+  # Variables: same as rollover-missed-message
+  rollover-skipped-message: "&cYou didn't earn a rollover life this period (needed &e{required} &cmin of playtime). Next rollover: &e{next_rollover}&c."
+
+  # Message shown to a player when they are death-banned (lives reach 0).
+  # Variable: {next_rollover} = UTC datetime of the next life rollover
+  ban-message: "You have no lives remaining. Next rollover: {next_rollover}."
+
+  # Alternative ban message shown during the End phase, where the life rollover does not apply.
+  ban-message-end-phase: "The season is ending. Your ban will not be lifted until the next season."
+
+  # If true, death-banned players can rejoin the server in spectator mode instead of being blocked entirely.
+  allow-spectate-on-ban: false
+
+  # Message shown when a player tries to use /tradelives after the End phase has opened.
+  # Life trading is permanently disabled once the End phase begins.
+  trade-disabled-message: "Life trading is closed. The End phase has begun."
+
+  # If true, trading away your last life requires a second confirmation within the timeout window.
+  trade-last-life-confirm: true
+
+  # Message shown when a player tries to trade their last life and confirmation is required.
+  trade-last-life-confirm-message: "You are about to trade your last life. Run the command again within 30 seconds to confirm."
+
+  # Seconds the player has to confirm a last-life trade before the pending request expires.
+  trade-last-life-confirm-timeout-seconds: 30
+
+# ─── XP on Death ──────────────────────────────────────────────────────────────
+xp:
+  # Base XP removed from the victim when killed by another player.
+  victim-loss-base: 50
+
+  # Base XP granted to the killer on a player kill.
+  # This value is then multiplied by MoralityEngine's per-tier XP multiplier for the killer.
+  # At neutral morality the multiplier is 1.0 (no change).
+  # 5345 is the total XP required to reach level 50 from 0 in vanilla Minecraft.
+  killer-reward-base: 5345
+
+# ─── Enderchest Drop ──────────────────────────────────────────────────────────
+enderchest:
+  # If true, the full contents of a player's enderchest are dropped at their death
+  # location when killed by another player, and their enderchest is cleared.
+  # Both the drop and the clear happen atomically — no items are duplicated or lost.
+  drop-on-pvp-death: true
+
+# ─── Combat Tagging / Ghost NPCs ──────────────────────────────────────────────
+combat:
+  # Seconds a player remains combat-tagged after the last PvP hit (dealt or received).
+  # The timer refreshes on each new hit.
+  tag-duration-seconds: 15
+
+  # Seconds a logout ghost persists in the world before despawning safely.
+  # If the ghost survives this duration, the player is considered safe — no life is lost.
+  # If the player reconnects before the timer expires the ghost despawns immediately.
+  ghost-duration-seconds: 30
+
+  # If true, a tagged player who logs out spawns a ghost NPC at their logout location.
+  # The ghost can be killed for full kill credit (life loss, XP, enderchest drop).
+  # If false, a tagged player who logs out dies instantly instead.
+  ghost-enabled: true
+
+  # If true, combat-tagged players see a countdown in their action bar (above the
+  # XP bar / hotbar) showing how many seconds remain until they can safely log out.
+  pvp-tag-hud-enabled: true
+
+  # Normal message shown every other update.
+  # Supports & color codes.
+  # Variables: {seconds} = remaining seconds, {lives} = player's lives,
+  #            {tier}    = morality tier name (requires MoralityEngine; "UNKNOWN" if absent)
+  pvp-tag-hud-message: "&cCombat tagged! Logout in &e{seconds}s &c| Lives: &e{lives} &c| Tier: &e{tier}"
+
+  # Alternate "flash" message shown on interleaved updates to create a visual pulse.
+  # Set pvp-tag-hud-flash: false to always show the normal message instead.
+  pvp-tag-hud-flash-message: "&4&lCOMBAT! &cLogout in &e{seconds}s &c| Lives: &e{lives} &c| Tier: &e{tier}"
+
+  # If true, the normal and flash messages alternate each update to grab the player's attention.
+  pvp-tag-hud-flash: true
+
+  # How often the action bar is refreshed in ticks (20 ticks = 1 second).
+  # With flash enabled, each message is shown for this many ticks before swapping.
+  # Keep ≥ 5 to avoid spamming the client.
+  pvp-tag-hud-update-ticks: 10
+
+# ─── Seasonal Phases ──────────────────────────────────────────────────────────
+phases:
+  # Days after server start (or last phase change) before the Overworld→Nether
+  # transition fires automatically (requires auto-advance: true).
+  overworld-duration-days: 21
+
+  # Days after the Nether phase opens before the End phase becomes available
+  # for manual admin trigger via /setphase END.
+  # The End phase is never opened automatically — an admin must trigger it.
+  nether-duration-days: 21
+
+  # If true, the Overworld→Nether transition fires automatically when overworld-duration-days elapses.
+  # If false, an admin must run /setphase NETHER to advance the phase manually.
+  auto-advance: true
+
+  # Server-wide broadcast sent when the Nether phase opens.
+  broadcast-nether-open: "The Nether is now open!"
+
+  # Server-wide broadcast sent when the End phase opens.
+  broadcast-end-open: "The End is now open!"
+
+  # Message shown to a player who tries to enter a Nether portal during the Overworld phase.
+  portal-blocked-nether: "The Nether is not yet open."
+
+  # Message shown to a player who tries to enter an End portal before the End phase.
+  portal-blocked-end: "The End is not yet open."
+
+  # Minimum ratio of bad-morality players to total active players required before
+  # /checkseason will allow a season-end confirmation.
+  # Active players: logged in within active-player-window-days and have ≥ 1 life (spectators excluded).
+  # Example: 0.6 means at least 60% of active players must be bad morality.
+  season-end-threshold: 0.6
+
+  # A player is counted as "active" for season-end and frost vignette calculations
+  # only if they have logged in within this many days and have ≥ 1 life remaining.
+  active-player-window-days: 7
+
+  # Days of wind-down after the admin confirms season end via /checkseason.
+  # During wind-down the server runs normally. When the timer expires, the server locks
+  # and rejects all new connections until the admin rotates the map from the backend.
+  wind-down-days: 7
+
+  # Broadcast sent when the wind-down period begins (season end confirmed).
+  wind-down-broadcast: "The season ends in 7 days. Prepare for the final battles."
+
+  # Broadcast sent when the server locks at the end of the wind-down period.
+  lock-broadcast: "The server is now locked. The season has ended."
+
+  # If true, players receive a phase reminder message in chat when they join the server.
+  join-broadcast-enabled: true
+
+  # Message shown on join during the Overworld phase.
+  join-broadcast-overworld: "You are playing in the Overworld phase."
+
+  # Message shown on join during the Nether phase.
+  join-broadcast-nether: "The Nether is open! Brave its depths for greater rewards."
+
+  # Message shown on join during the End phase.
+  join-broadcast-end: "The End is open. This is the final phase — fight for your life."
+
+# ════════════════════════════════════════════════════════════════════════════════
+# COMMAND REFERENCE
+# All admin commands require the corelife.admin permission (default: op).
+# Tab-completion is supported for all subcommands and player name arguments.
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# ── /corelife <subcommand> [arguments] ──────────────────────────────────────────
+#
+#   LIFE MANAGEMENT
+#     /corelife lives <player>
+#       Show how many lives a player currently has.
+#
+#     /corelife setlives <player> <amount>
+#       Set a player's life count to an exact value.
+#       Respects the max-lives cap configured above.
+#
+#     /corelife givelives <player> <amount>
+#       Add lives to a player. Negative values subtract lives.
+#       Respects the max-lives cap.
+#
+#     /corelife info <player>
+#       Full status dump: lives, death-ban state, admin-ban state,
+#       combat-tag status, and whether a ghost is currently active.
+#
+#   BAN MANAGEMENT
+#     /corelife ban <player>
+#       Immediately death-ban a player: sets lives to 0, marks them
+#       death-banned, and kicks them with the configured ban-message.
+#       Useful for testing the ban flow without waiting for a real death.
+#
+#     /corelife unban <player>
+#       Remove a death ban. If the player's lives are 0, restores them to 1.
+#       Does NOT affect admin bans applied outside CoreLife.
+#
+#   ROLLOVER
+#     /corelife rollover
+#       Manually trigger the life rollover immediately.
+#       Players who meet the playtime requirement receive +1 life (subject to rollover-max-lives).
+#       Death-banned players (who are not admin-banned) are unbanned and given 1 life
+#       regardless of playtime. Use this to test rollover without waiting.
+#
+#     /corelife rolloverinfo <player>
+#       Show a player's full rollover status for the current period:
+#         - Current lives vs. rollover cap and global cap
+#         - Minutes played this period vs. required minimum (including current live session)
+#         - Whether they qualify for the next rollover
+#         - Whether the missed-rollover notification flag is set
+#         - UTC datetime of the next scheduled rollover
+#
+#     /corelife rolloverplaytime <player> <minutes>
+#       Override a player's rollover playtime counter to the specified number of minutes.
+#       Useful for testing the playtime gate without waiting — set to the required minimum
+#       to make the player immediately qualify, or to 0 to simulate a player who hasn't
+#       played this period.
+#
+#     /corelife rolloverreset <player>
+#       Reset a player's rollover playtime counter to 0 and clear the missed-rollover flag.
+#       Use this to simulate a fresh rollover period for a specific player.
+#
+#   COMBAT TAGGING
+#     /corelife tag <player>
+#       Force-apply a combat tag to a player for the configured duration.
+#       Tag a player then have them disconnect to test ghost spawning.
+#
+#     /corelife untag <player>
+#       Remove a player's combat tag immediately so they can log out safely.
+#
+#   GHOST MANAGEMENT
+#     /corelife ghostlist
+#       List all players who currently have an active ghost entity in the world.
+#
+#     /corelife ghostkill <player>
+#       Despawn a player's ghost without triggering the kill sequence.
+#       No life loss, no XP drop, no enderchest drop — ghost disappears
+#       as if its timer expired naturally.
+#
+#   PHASE MANAGEMENT
+#     /corelife phaseinfo
+#       Show the current phase, how long it has been active, whether the
+#       server is locked, and (for OVERWORLD/NETHER) how long until the
+#       next transition becomes available.
+#
+#     /corelife unlock
+#       Remove the server lock so new connections are accepted again.
+#       Use this after testing the wind-down/lock sequence.
+#
+#   CONFIG
+#     /corelife reload
+#       Reload config.yml without restarting the server.
+#       Phase state and player data are not affected.
+#
+# ── /setphase <OVERWORLD|NETHER|END> ────────────────────────────────────────────
+#   Set the current game phase directly. Fires a PhaseChangeEvent, broadcasts
+#   the configured message, and resets the phase timer. Auto-advance is
+#   rescheduled from this new point.
+#   Requires: corelife.admin
+#
+# ── /checkseason ────────────────────────────────────────────────────────────────
+#   Evaluate the bad:total active-player ratio against the configured
+#   season-end-threshold. Reports the current breakdown.
+#   If the threshold is met, running the command a second time within 30 seconds
+#   confirms the season wind-down and broadcasts the wind-down-broadcast message.
+#   Requires: corelife.admin
+#
+# ── /tradelives <player> <amount> ───────────────────────────────────────────────
+#   Trade lives to another player. Disabled once the End phase opens.
+#   A player cannot trade their last life without confirming (if enabled).
+#   Requires: corelife.trade (default: true for all players)
+#
+# ── /lives [player] ─────────────────────────────────────────────────────────────
+#   Show your own life count, or another player's if an argument is provided.
+#   The command name is controlled by commands.lives-aliases above.
+#   No special permission required for self-lookup.
+#
+# ── PERMISSIONS ─────────────────────────────────────────────────────────────────
+#   corelife.admin  (default: op)   — all /corelife, /setphase, /checkseason
+#   corelife.trade  (default: true) — /tradelives

@@ -1,0 +1,34 @@
+name: ZoneSpawn
+version: ${project.version}
+main: com.zonespawn.ZoneSpawn
+api-version: '1.21'
+description: Per-zone random respawning based on LuckPerms group
+
+depend:
+  - LuckPerms
+
+commands:
+  zonespawn:
+    description: ZoneSpawn admin commands
+    usage: /zonespawn <reload|teleport|setzone|info|listinvulnerable>
+    permission: zonespawn.use
+
+permissions:
+  zonespawn.reload:
+    description: Reload ZoneSpawn config
+    default: op
+  zonespawn.teleport:
+    description: Assign zone and teleport player (first join)
+    default: op
+  zonespawn.setzone:
+    description: Assign zone only, no teleport (zone switching)
+    default: op
+  zonespawn.info:
+    description: View a player's zone info and list invulnerable players
+    default: op
+  zonespawn.bypass:
+    description: Bypass zone respawn, use vanilla logic
+    default: false
+  zonespawn.openmenu:
+    description: Open the zone picker via /zone manually (enforced by DeluxeMenus, not ZoneSpawn)
+    default: false
