@@ -17,11 +17,18 @@ jobs:
       - name: Test & Install CoreLife
         run: mvn -f plugins/corelife/pom.xml install --batch-mode
 
-      - name: Upload Artifact
+      - name: Upload JAR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: corelife-${{ github.sha }}
           path: plugins/corelife/target/*.jar
+          if-no-files-found: error
+
+      - name: Upload Config Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: corelife-config-${{ github.sha }}
+          path: plugins/corelife/src/main/resources/config.yml
           if-no-files-found: error
 
   build-moralityengine:
@@ -40,11 +47,18 @@ jobs:
       - name: Test & Build MoralityEngine
         run: mvn -f plugins/moralityengine/pom.xml install --batch-mode
 
-      - name: Upload Artifact
+      - name: Upload JAR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: moralityengine-${{ github.sha }}
           path: plugins/moralityengine/target/*.jar
+          if-no-files-found: error
+
+      - name: Upload Config Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moralityengine-config-${{ github.sha }}
+          path: plugins/moralityengine/src/main/resources/config.yml
           if-no-files-found: error
 
   deploy:
@@ -52,17 +66,29 @@ jobs:
     runs-on: [self-hosted, dev]
 
     steps:
-      - name: Download corelife
+      - name: Download corelife JAR
         uses: actions/download-artifact@v4
         with:
           name: corelife-${{ github.sha }}
           path: artifacts/corelife
 
-      - name: Download moralityengine
+      - name: Download moralityengine JAR
         uses: actions/download-artifact@v4
         with:
           name: moralityengine-${{ github.sha }}
           path: artifacts/moralityengine
+
+      - name: Download corelife config
+        uses: actions/download-artifact@v4
+        with:
+          name: corelife-config-${{ github.sha }}
+          path: artifacts/corelife-config
+
+      - name: Download moralityengine config
+        uses: actions/download-artifact@v4
+        with:
+          name: moralityengine-config-${{ github.sha }}
+          path: artifacts/moralityengine-config
 
       - name: Check Plugins Directory Permissions
         run: |
@@ -87,7 +113,7 @@ jobs:
 
           echo "✅ Plugins directory exists and is writable: $PLUGINS_DIR"
 
-      - name: Backup and Deploy
+      - name: Backup and Deploy JARs
         run: |
           PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.DEV_CRAFTY_SERVER_GUID }}/plugins"
           BACKUP_DIR="${PLUGINS_DIR}/backups/$(date +%Y%m%d%H%M%S)"
@@ -98,6 +124,28 @@ jobs:
               mv "$EXISTING" "$BACKUP_DIR/"
             fi
             cp "artifacts/${PLUGIN}/"*.jar "${PLUGINS_DIR}/"
+          done
+
+      - name: Update Plugin Configs
+        run: |
+          PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.DEV_CRAFTY_SERVER_GUID }}/plugins"
+          declare -A CONFIG_DIRS=(
+            [corelife]="CoreLife"
+            [moralityengine]="MoralityEngine"
+          )
+          for PLUGIN in corelife moralityengine; do
+            CONFIG_SRC="artifacts/${PLUGIN}-config/config.yml"
+            CONFIG_DEST="${PLUGINS_DIR}/${CONFIG_DIRS[$PLUGIN]}/config.yml"
+            if [ -f "$CONFIG_SRC" ]; then
+              if [ -f "$CONFIG_DEST" ]; then
+                echo "🔄 Replacing config for ${PLUGIN}: $CONFIG_DEST"
+              else
+                echo "🆕 Writing new config for ${PLUGIN}: $CONFIG_DEST"
+              fi
+              cp "$CONFIG_SRC" "$CONFIG_DEST"
+            else
+              echo "⚠️ No config found for ${PLUGIN} at $CONFIG_SRC — skipping"
+            fi
           done
 
       - name: Restart Server
