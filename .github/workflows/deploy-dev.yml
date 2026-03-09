@@ -10,6 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Parent POM
+        run: mvn -f plugins/pom.xml install -N --batch-mode
+
       - name: Test & Install CoreLife
         run: mvn -f plugins/corelife/pom.xml install --batch-mode
 
@@ -25,6 +28,12 @@ jobs:
     runs-on: [self-hosted, dev]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Parent POM
+        run: mvn -f plugins/pom.xml install -N --batch-mode
+
+      - name: Install CoreLife
+        run: mvn -f plugins/corelife/pom.xml install -DskipTests --batch-mode
 
       - name: Test & Build MoralityEngine
         run: mvn -f plugins/moralityengine/pom.xml install --batch-mode
