@@ -107,7 +107,7 @@ jobs:
           # Fix plugins root write permission
           if [ ! -w "$PLUGINS_DIR" ]; then
             echo "🔧 Fixing write permission on plugins directory: $PLUGINS_DIR"
-            chmod g+w "$PLUGINS_DIR"
+            sudo chmod g+w "$PLUGINS_DIR"
             if [ ! -w "$PLUGINS_DIR" ]; then
               echo "❌ Could not fix write permission on $PLUGINS_DIR — try: sudo chmod g+w $PLUGINS_DIR && sudo chmod g+s $PLUGINS_DIR"
               exit 1
@@ -117,7 +117,7 @@ jobs:
           # Fix plugins root execute permission
           if [ ! -x "$PLUGINS_DIR" ]; then
             echo "🔧 Fixing execute permission on plugins directory: $PLUGINS_DIR"
-            chmod g+x "$PLUGINS_DIR"
+            sudo chmod g+x "$PLUGINS_DIR"
             if [ ! -x "$PLUGINS_DIR" ]; then
               echo "❌ Could not fix execute permission on $PLUGINS_DIR — try: sudo chmod g+x $PLUGINS_DIR"
               exit 1
@@ -125,7 +125,7 @@ jobs:
           fi
 
           # Set sticky bit so new files inherit group
-          chmod g+s "$PLUGINS_DIR"
+          sudo chmod g+s "$PLUGINS_DIR"
 
           echo "✅ Plugins directory permissions OK"
 
@@ -141,7 +141,7 @@ jobs:
 
             if [ ! -w "$CONFIG_DIR" ]; then
               echo "🔧 Fixing write permission on config dir: $CONFIG_DIR"
-              chmod g+w "$CONFIG_DIR"
+              sudo chmod g+w "$CONFIG_DIR"
               if [ ! -w "$CONFIG_DIR" ]; then
                 echo "❌ Could not fix write permission on $CONFIG_DIR — try: sudo chmod g+w $CONFIG_DIR"
                 exit 1
@@ -152,7 +152,7 @@ jobs:
 
             if [ -f "$CONFIG_FILE" ] && [ ! -w "$CONFIG_FILE" ]; then
               echo "🔧 Fixing write permission on config file: $CONFIG_FILE"
-              chmod g+w "$CONFIG_FILE"
+              sudo chmod g+w "$CONFIG_FILE"
               if [ ! -w "$CONFIG_FILE" ]; then
                 echo "❌ Could not fix write permission on $CONFIG_FILE — try: sudo chmod g+w $CONFIG_FILE"
                 exit 1
