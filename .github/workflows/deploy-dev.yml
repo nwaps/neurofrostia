@@ -7,6 +7,7 @@ on:
 jobs:
   build-corelife:
     runs-on: [self-hosted, dev]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -26,6 +27,7 @@ jobs:
   build-moralityengine:
     needs: build-corelife
     runs-on: [self-hosted, dev]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -61,6 +63,29 @@ jobs:
         with:
           name: moralityengine-${{ github.sha }}
           path: artifacts/moralityengine
+
+      - name: Check Plugins Directory Permissions
+        run: |
+          PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.DEV_CRAFTY_SERVER_GUID }}/plugins"
+
+          if [ ! -d "$PLUGINS_DIR" ]; then
+            echo "❌ Plugins directory does not exist: $PLUGINS_DIR"
+            exit 1
+          fi
+
+          if [ ! -w "$PLUGINS_DIR" ]; then
+            echo "❌ No write permission on: $PLUGINS_DIR"
+            echo "Fix with: sudo chmod g+w $PLUGINS_DIR && sudo chmod g+s $PLUGINS_DIR"
+            exit 1
+          fi
+
+          if [ ! -x "$PLUGINS_DIR" ]; then
+            echo "❌ No execute permission on: $PLUGINS_DIR"
+            echo "Fix with: sudo chmod g+x $PLUGINS_DIR"
+            exit 1
+          fi
+
+          echo "✅ Plugins directory exists and is writable: $PLUGINS_DIR"
 
       - name: Backup and Deploy
         run: |

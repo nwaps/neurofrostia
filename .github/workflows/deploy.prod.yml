@@ -20,31 +20,59 @@ jobs:
             exit 1
           fi
 
-  build:
+  build-corelife:
     needs: confirm-branch
     runs-on: [self-hosted, prod]
-    strategy:
-      matrix:
-        plugin: ${{ inputs.plugin == 'all' && fromJson('["corelife","moralityengine"]') || fromJson(format('["{0}"]', inputs.plugin)) }}
+    if: ${{ inputs.plugin == 'corelife' || inputs.plugin == 'all' }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Build
-        run: mvn -f plugins/${{ matrix.plugin }}/pom.xml package -DskipTests --batch-mode
+      - name: Install Parent POM
+        run: mvn -f plugins/pom.xml install -N --batch-mode
+
+      - name: Test & Install CoreLife
+        run: mvn -f plugins/corelife/pom.xml install --batch-mode
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.plugin }}-${{ github.sha }}
-          path: plugins/${{ matrix.plugin }}/target/*.jar
+          name: corelife-${{ github.sha }}
+          path: plugins/corelife/target/*.jar
+          if-no-files-found: error
+
+  build-moralityengine:
+    needs: build-corelife
+    runs-on: [self-hosted, prod]
+    if: ${{ inputs.plugin == 'moralityengine' || inputs.plugin == 'all' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install Parent POM
+        run: mvn -f plugins/pom.xml install -N --batch-mode
+
+      - name: Install CoreLife
+        run: mvn -f plugins/corelife/pom.xml install -DskipTests --batch-mode
+
+      - name: Test & Build MoralityEngine
+        run: mvn -f plugins/moralityengine/pom.xml install --batch-mode
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moralityengine-${{ github.sha }}
+          path: plugins/moralityengine/target/*.jar
           if-no-files-found: error
 
   deploy:
-    needs: build
+    needs: [build-corelife, build-moralityengine]
     runs-on: [self-hosted, prod]
+    if: always() && !failure() && !cancelled()
 
     steps:
       - name: Download artifacts
@@ -54,6 +82,29 @@ jobs:
           path: artifacts
           merge-multiple: false
 
+      - name: Check Plugins Directory Permissions
+        run: |
+          PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.PROD_CRAFTY_SERVER_GUID }}/plugins"
+
+          if [ ! -d "$PLUGINS_DIR" ]; then
+            echo "❌ Plugins directory does not exist: $PLUGINS_DIR"
+            exit 1
+          fi
+
+          if [ ! -w "$PLUGINS_DIR" ]; then
+            echo "❌ No write permission on: $PLUGINS_DIR"
+            echo "Fix with: sudo chmod g+w $PLUGINS_DIR && sudo chmod g+s $PLUGINS_DIR"
+            exit 1
+          fi
+
+          if [ ! -x "$PLUGINS_DIR" ]; then
+            echo "❌ No execute permission on: $PLUGINS_DIR"
+            echo "Fix with: sudo chmod g+x $PLUGINS_DIR"
+            exit 1
+          fi
+
+          echo "✅ Plugins directory exists and is writable: $PLUGINS_DIR"
+
       - name: Backup and Deploy
         run: |
           PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.PROD_CRAFTY_SERVER_GUID }}/plugins"
@@ -61,7 +112,7 @@ jobs:
           mkdir -p "$BACKUP_DIR"
           for ARTIFACT_DIR in artifacts/*/; do
             PLUGIN=$(basename "$ARTIFACT_DIR" "-${{ github.sha }}")
-            EXISTING=$(ls "${PLUGINS_DIR}/${PLUGIN}"*.jar 2>/dev/null | head -n1)
+            EXISTING=$(find "${PLUGINS_DIR}" -maxdepth 1 -iname "${PLUGIN}*.jar" | head -n1)
             if [ -n "$EXISTING" ]; then
               mv "$EXISTING" "$BACKUP_DIR/"
             fi
