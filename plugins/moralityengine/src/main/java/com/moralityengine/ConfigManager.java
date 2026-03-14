@@ -176,6 +176,7 @@ public class ConfigManager {
     private double villageGolemWindSurgePower;
     private int villageGolemWindSurgeCooldownSeconds;
     private double villageGolemWindSurgePathThreshold;
+    private double villageGolemAggroRadius;
 
     // Golem boss
     private boolean golemBossEnabled;
@@ -423,6 +424,7 @@ public class ConfigManager {
         villageGolemWindSurgePower = c.getDouble("village-golem.wind-surge-power", 2.5);
         villageGolemWindSurgeCooldownSeconds = c.getInt("village-golem.wind-surge-cooldown-seconds", 8);
         villageGolemWindSurgePathThreshold = c.getDouble("village-golem.wind-surge-path-threshold", 3.0);
+        villageGolemAggroRadius = c.getDouble("village-golem.aggro-radius", 32.0);
 
         golemBossEnabled = c.getBoolean("golem-boss.enabled", true);
         golemSpawnBlock = parseMaterial(c.getString("golem-boss.spawn-block", "OBSIDIAN"));
@@ -639,6 +641,7 @@ public class ConfigManager {
     public double getVillageGolemWindSurgePower() { return villageGolemWindSurgePower; }
     public int getVillageGolemWindSurgeCooldownSeconds() { return villageGolemWindSurgeCooldownSeconds; }
     public double getVillageGolemWindSurgePathThreshold() { return villageGolemWindSurgePathThreshold; }
+    public double getVillageGolemAggroRadius() { return villageGolemAggroRadius; }
     public boolean isGolemBossEnabled() { return golemBossEnabled; }
     public Material getGolemSpawnBlock() { return golemSpawnBlock; }
     public double getGolemHealth() { return golemHealth; }

@@ -6,12 +6,12 @@
 
     <groupId>plugins</groupId>
     <artifactId>plugins-parent</artifactId>
-    <version>1.0.61</version>
+    <version>1.0.63</version>
     <packaging>pom</packaging>
 
     <modules>
-        <module>CoreLife</module>
-        <module>MoralityEngine</module>
+        <module>corelife</module>
+        <module>moralityengine</module>
     </modules>
 
     <properties>

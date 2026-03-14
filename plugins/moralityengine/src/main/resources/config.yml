@@ -607,6 +607,10 @@ village-golem:
   # lower it if golems feel too passive near ledges.
   wind-surge-path-threshold: 3.0
 
+  # When a player attacks an enhanced golem, all other enhanced golems within this
+  # radius (in blocks) will aggro onto the attacker.  Set to 0 to disable.
+  aggro-radius: 32.0
+
 # ─── Golem Boss ───────────────────────────────────────────────────────────────
 # The Golem Boss is spawned by placing three villager heads in the Wither-skull pattern
 # on top of spawn-block blocks. The blocks and heads are consumed on spawn.

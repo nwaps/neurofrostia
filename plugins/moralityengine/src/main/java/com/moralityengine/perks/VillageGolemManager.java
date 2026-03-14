@@ -9,6 +9,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -82,6 +83,35 @@ public class VillageGolemManager implements Listener {
         applyBossStats(golem);
         golem.getPersistentDataContainer().set(villageGolemKey, PersistentDataType.BYTE, (byte) 1);
         trackedGolems.add(golem.getUniqueId());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onGolemDamaged(EntityDamageByEntityEvent event) {
+        if (!plugin.getConfigManager().isVillageGolemEnabled()) return;
+        if (!(event.getEntity() instanceof IronGolem hitGolem)) return;
+        if (!trackedGolems.contains(hitGolem.getUniqueId())) return;
+
+        Player attacker;
+        if (event.getDamager() instanceof Player p) {
+            attacker = p;
+        } else if (event.getDamager() instanceof Projectile proj && proj.getShooter() instanceof Player p) {
+            attacker = p;
+        } else {
+            return;
+        }
+
+        double radius = plugin.getConfigManager().getVillageGolemAggroRadius();
+        if (radius <= 0) return;
+        double radiusSq = radius * radius;
+
+        for (UUID id : trackedGolems) {
+            if (id.equals(hitGolem.getUniqueId())) continue;
+            IronGolem nearby = findGolem(id);
+            if (nearby == null || nearby.isDead()) continue;
+            if (!nearby.getWorld().equals(hitGolem.getWorld())) continue;
+            if (nearby.getLocation().distanceSquared(hitGolem.getLocation()) > radiusSq) continue;
+            nearby.setTarget(attacker);
+        }
     }
 
     private void applyBossStats(IronGolem golem) {

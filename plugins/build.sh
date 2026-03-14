@@ -26,8 +26,8 @@ mvn install -f "$PARENT_POM" -q
 echo "==> Replacing jars in $SCRIPT_DIR..."
 rm -f "$SCRIPT_DIR"/CoreLife-*.jar
 rm -f "$SCRIPT_DIR"/MoralityEngine-*.jar
-cp "$SCRIPT_DIR/CoreLife/target/CoreLife-${VERSION}.jar" "$SCRIPT_DIR/"
-cp "$SCRIPT_DIR/MoralityEngine/target/MoralityEngine-${VERSION}.jar" "$SCRIPT_DIR/"
+cp "$SCRIPT_DIR/corelife/target/CoreLife-${VERSION}.jar" "$SCRIPT_DIR/"
+cp "$SCRIPT_DIR/moralityengine/target/MoralityEngine-${VERSION}.jar" "$SCRIPT_DIR/"
 
 echo "==> Done."
 echo "    $SCRIPT_DIR/CoreLife-${VERSION}.jar"
