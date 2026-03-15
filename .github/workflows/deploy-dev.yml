@@ -178,6 +178,10 @@ jobs:
             cp "artifacts/${PLUGIN}/"*.jar "${PLUGINS_DIR}/"
           done
 
+          # maven-shade-plugin produces original-*.jar alongside the shaded JAR;
+          # remove any that were copied into the plugins directory
+          find "${PLUGINS_DIR}" -maxdepth 1 -iname "original-*.jar" -delete
+
       - name: Update Plugin Configs
         run: |
           PLUGINS_DIR="/var/opt/minecraft/crafty/crafty-4/servers/${{ secrets.DEV_CRAFTY_SERVER_GUID }}/plugins"

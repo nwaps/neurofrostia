@@ -1,6 +1,7 @@
 package com.moralityengine.perks;
 
 import com.moralityengine.MoralityEngine;
+import com.moralityengine.MoralityTier;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -237,17 +238,28 @@ public class VillageGolemManager implements Listener {
         }.runTaskTimer(plugin, 3L, 3L);
     }
 
-    // ── Wind surge loop (slow — every 40 ticks) ─────────────────────────────
+    // ── Targeting + wind surge loop (every 20 ticks / 1 second) ────────────
 
     private void startWindSurgeLoop() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 if (!plugin.getConfigManager().isVillageGolemEnabled()) return;
+                boolean ironGolemAggroEnabled = plugin.getConfigManager().isIronGolemAggroTier1();
 
                 for (UUID id : trackedGolems) {
                     IronGolem golem = findGolem(id);
                     if (golem == null || golem.isDead() || !golem.isValid()) continue;
+
+                    // Active morality targeting: if the golem has no provoked target,
+                    // scan for nearby bad-morality players and target the nearest one.
+                    if (ironGolemAggroEnabled && !provokedTarget.containsKey(id)) {
+                        Player badTarget = findNearestBadPlayer(golem);
+                        if (badTarget != null) {
+                            golem.setTarget(badTarget);
+                            golem.getPathfinder().moveTo(badTarget, 1.2);
+                        }
+                    }
 
                     Player player = resolveTarget(golem);
                     if (player == null) continue;
@@ -259,7 +271,32 @@ public class VillageGolemManager implements Listener {
                     }
                 }
             }
-        }.runTaskTimer(plugin, 40L, 40L);
+        }.runTaskTimer(plugin, 20L, 20L);
+    }
+
+    /**
+     * Finds the nearest bad-morality player (tier 1+) within the configured aggro radius.
+     * Returns null if no eligible player is found.
+     */
+    private Player findNearestBadPlayer(IronGolem golem) {
+        double range = plugin.getConfigManager().getVillageGolemAggroRadius();
+        if (range <= 0) return null;
+
+        Player nearest = null;
+        double nearestDistSq = range * range;
+        for (Entity nearby : golem.getNearbyEntities(range, range, range)) {
+            if (!(nearby instanceof Player player)) continue;
+            GameMode gm = player.getGameMode();
+            if (gm != GameMode.SURVIVAL && gm != GameMode.ADVENTURE) continue;
+            MoralityTier tier = plugin.getMoralityManager().getTier(player.getUniqueId());
+            if (!tier.isBad() || tier.getLevel() < 1) continue;
+            double distSq = golem.getLocation().distanceSquared(player.getLocation());
+            if (distSq < nearestDistSq) {
+                nearestDistSq = distSq;
+                nearest = player;
+            }
+        }
+        return nearest;
     }
 
     /**
