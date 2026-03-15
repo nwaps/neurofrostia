@@ -97,6 +97,7 @@ public class MoralityEngine extends JavaPlugin {
         // Village golem enhancements
         villageGolemManager = new VillageGolemManager(this);
         getServer().getPluginManager().registerEvents(villageGolemManager, this);
+        villageGolemManager.reattachAfterRestart();
 
         // HUD
         locatorBarManager = new LocatorBarManager(this);
