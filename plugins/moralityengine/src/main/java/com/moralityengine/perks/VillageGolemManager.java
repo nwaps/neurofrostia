@@ -57,6 +57,15 @@ public class VillageGolemManager implements Listener {
     private final Map<UUID, UUID> lastKnownTarget     = new HashMap<>(); // golem → player
     private final Map<UUID, Long> lastKnownTargetTime = new HashMap<>(); // golem → epoch millis
 
+    /**
+     * Provoked targets set by the damage event. Vanilla AI clears setTarget() on the
+     * next tick for player-friendly golems, so the AI loop must re-apply it each cycle.
+     * Entries expire after PROVOKED_MS so golems don't chase forever.
+     */
+    private final Map<UUID, UUID> provokedTarget     = new HashMap<>(); // golem → player
+    private final Map<UUID, Long> provokedTargetTime = new HashMap<>(); // golem → epoch millis
+    private static final long PROVOKED_MS = 30_000L;
+
     /** How long to keep firing at the last-known target after vanilla AI drops it. */
     private static final long TARGET_MEMORY_MS = 8_000L;
 
@@ -100,7 +109,8 @@ public class VillageGolemManager implements Listener {
             return;
         }
 
-        hitGolem.setTarget(attacker);
+        long now = System.currentTimeMillis();
+        provoke(hitGolem, attacker, now);
 
         double radius = plugin.getConfigManager().getVillageGolemAggroRadius();
         if (radius <= 0) return;
@@ -112,8 +122,16 @@ public class VillageGolemManager implements Listener {
             if (nearby == null || nearby.isDead()) continue;
             if (!nearby.getWorld().equals(hitGolem.getWorld())) continue;
             if (nearby.getLocation().distanceSquared(hitGolem.getLocation()) > radiusSq) continue;
-            nearby.setTarget(attacker);
+            provoke(nearby, attacker, now);
         }
+    }
+
+    private void provoke(IronGolem golem, Player attacker, long now) {
+        golem.setTarget(attacker);
+        provokedTarget.put(golem.getUniqueId(), attacker.getUniqueId());
+        provokedTargetTime.put(golem.getUniqueId(), now);
+        lastKnownTarget.put(golem.getUniqueId(), attacker.getUniqueId());
+        lastKnownTargetTime.put(golem.getUniqueId(), now);
     }
 
     private void applyBossStats(IronGolem golem) {
@@ -153,8 +171,13 @@ public class VillageGolemManager implements Listener {
                         surgeCooldowns.remove(id);
                         lastKnownTarget.remove(id);
                         lastKnownTargetTime.remove(id);
+                        provokedTarget.remove(id);
+                        provokedTargetTime.remove(id);
                         continue;
                     }
+
+                    // Re-apply provoked target every tick so vanilla AI can't clear it
+                    enforceProvokedTarget(golem);
 
                     Player player = resolveTarget(golem);
                     if (player == null) continue;
@@ -170,11 +193,41 @@ public class VillageGolemManager implements Listener {
     }
 
     /**
+     * If the golem has an active provoked target, re-apply setTarget() so vanilla AI
+     * cannot silently clear it. Expired or invalid provoked entries are cleaned up.
+     */
+    private void enforceProvokedTarget(IronGolem golem) {
+        UUID golemId = golem.getUniqueId();
+        UUID playerId = provokedTarget.get(golemId);
+        if (playerId == null) return;
+
+        long elapsed = System.currentTimeMillis() - provokedTargetTime.getOrDefault(golemId, 0L);
+        if (elapsed > PROVOKED_MS) {
+            provokedTarget.remove(golemId);
+            provokedTargetTime.remove(golemId);
+            return;
+        }
+
+        Player player = Bukkit.getPlayer(playerId);
+        if (player == null || !player.isOnline()
+                || player.getGameMode() == GameMode.CREATIVE
+                || player.getGameMode() == GameMode.SPECTATOR) {
+            provokedTarget.remove(golemId);
+            provokedTargetTime.remove(golemId);
+            return;
+        }
+
+        // Re-apply every cycle — vanilla AI will have cleared it
+        golem.setTarget(player);
+    }
+
+    /**
      * Returns the player the golem should consider for wind surge.
      *
      * Priority:
      *   1. Live target from vanilla AI — always preferred and refreshes the memory.
-     *   2. Last-known target within TARGET_MEMORY_MS — used when vanilla AI drops
+     *   2. Provoked target from the damage event — persists for PROVOKED_MS.
+     *   3. Last-known target within TARGET_MEMORY_MS — used when vanilla AI drops
      *      the target immediately after the player pillars up, so we don't miss
      *      the first few surge windows while the golem is still underneath them.
      */
@@ -186,6 +239,19 @@ public class VillageGolemManager implements Listener {
             lastKnownTarget.put(golemId, p.getUniqueId());
             lastKnownTargetTime.put(golemId, System.currentTimeMillis());
             return p;
+        }
+
+        // Check provoked target (set by damage event, persists across vanilla AI resets)
+        UUID provokedId = provokedTarget.get(golemId);
+        if (provokedId != null) {
+            long elapsed = System.currentTimeMillis() - provokedTargetTime.getOrDefault(golemId, 0L);
+            if (elapsed <= PROVOKED_MS) {
+                Player provoked = Bukkit.getPlayer(provokedId);
+                if (provoked != null && provoked.isOnline()
+                        && golem.getLocation().distanceSquared(provoked.getLocation()) <= 32.0 * 32.0) {
+                    return provoked;
+                }
+            }
         }
 
         UUID lastId = lastKnownTarget.get(golemId);
