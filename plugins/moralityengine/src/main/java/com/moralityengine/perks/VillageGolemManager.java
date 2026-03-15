@@ -12,6 +12,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -80,6 +81,48 @@ public class VillageGolemManager implements Listener {
         this.villageGolemKey = new NamespacedKey(plugin, "village_golem");
         startEnforceLoop();
         startWindSurgeLoop();
+    }
+
+    // ── Reattach after restart ───────────────────────────────────────────────
+
+    /**
+     * Called from onEnable — deferred 1 tick so worlds are fully loaded.
+     * Scans all loaded entities for surviving enhanced golems and re-adds them to tracking.
+     */
+    public void reattachAfterRestart() {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            int count = 0;
+            for (World world : Bukkit.getWorlds()) {
+                for (Entity entity : world.getEntities()) {
+                    if (entity instanceof IronGolem golem && isVillageGolem(golem)) {
+                        if (trackedGolems.add(golem.getUniqueId())) {
+                            golem.setPlayerCreated(false);
+                            count++;
+                        }
+                    }
+                }
+            }
+            if (count > 0) {
+                plugin.getLogger().info("Reattached " + count + " village golem(s) after restart.");
+            }
+        });
+    }
+
+    /**
+     * When a chunk loads its entities, check for any enhanced golems that aren't tracked yet
+     * (e.g. golem was in an unloaded chunk at startup, player walks into range later).
+     */
+    @EventHandler
+    public void onEntitiesLoad(EntitiesLoadEvent event) {
+        if (!plugin.getConfigManager().isVillageGolemEnabled()) return;
+        for (Entity entity : event.getEntities()) {
+            if (!(entity instanceof IronGolem golem)) continue;
+            if (!isVillageGolem(golem)) continue;
+            if (trackedGolems.add(golem.getUniqueId())) {
+                golem.setPlayerCreated(false);
+                MoralityEngine.debug("Reattached village golem " + golem.getUniqueId() + " from chunk load.");
+            }
+        }
     }
 
     // ── Spawn interception ────────────────────────────────────────────────────
