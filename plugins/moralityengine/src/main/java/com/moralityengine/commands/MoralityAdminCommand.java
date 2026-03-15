@@ -31,11 +31,7 @@ import java.util.UUID;
  *   resetall                    — reset ALL players to 0
  *   settier <player> <tier>     — set score to just inside a named tier
  *   list [bad|good|neutral]     — list online players' tiers, optionally filtered
- *   bossinfo                    — show golem boss status and cooldown
- *   spawnboss                   — force-spawn boss at sender's location (player only)
- *   resetcooldown               — reset boss respawn cooldown
  *   givetotem <player> <dying|undying> — give a totem item to a player
- *   givehead <player> [count]   — give villager head(s) to a player
  *   reload                      — reload MoralityEngine config
  *   froststatus                 — show frost vignette ratio and intensity
  */
@@ -45,8 +41,8 @@ public class MoralityAdminCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBS = Arrays.asList(
             "setscore", "addscore", "resetscore", "resetall",
-            "settier", "list", "bossinfo", "spawnboss", "resetcooldown",
-            "givetotem", "givehead", "reload", "froststatus", "analytics"
+            "settier", "list",
+            "givetotem", "reload", "froststatus", "golemstatus", "analytics"
     );
 
     private static final List<String> TIERS = Arrays.asList(
@@ -163,43 +159,6 @@ public class MoralityAdminCommand implements CommandExecutor, TabCompleter {
                 yield true;
             }
 
-            case "bossinfo" -> {
-                boolean active = plugin.getGolemBossManager().isActive();
-                sender.sendMessage(Component.text("=== Golem Boss Info ==="));
-                sender.sendMessage(Component.text("Boss active: " + active));
-                if (!active) {
-                    long remaining = plugin.getGolemBossManager().cooldownRemainingMs();
-                    if (remaining > 0) {
-                        long mins = remaining / 60_000;
-                        long secs = (remaining % 60_000) / 1000;
-                        sender.sendMessage(Component.text("Respawn cooldown: " + mins + "m " + secs + "s remaining"));
-                    } else {
-                        sender.sendMessage(Component.text("Respawn cooldown: ready (can be spawned now)"));
-                    }
-                }
-                yield true;
-            }
-
-            case "spawnboss" -> {
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage(Component.text("Only a player can use spawnboss (location required)."));
-                    yield true;
-                }
-                if (!plugin.getConfigManager().isGolemBossEnabled()) {
-                    sender.sendMessage(Component.text("The Golem Boss is disabled in config (golem-boss.enabled: false).", NamedTextColor.RED));
-                    yield true;
-                }
-                plugin.getGolemBossManager().forceSpawn(player.getLocation());
-                sender.sendMessage(Component.text("Force-spawned Golem Boss at your location (cooldown bypassed)."));
-                yield true;
-            }
-
-            case "resetcooldown" -> {
-                plugin.getGolemBossManager().resetCooldown();
-                sender.sendMessage(Component.text("Golem Boss respawn cooldown reset. Boss can now be spawned immediately."));
-                yield true;
-            }
-
             case "givetotem" -> {
                 if (args.length < 3) { sender.sendMessage(Component.text("Usage: /moralityadmin givetotem <player> <dying|undying>")); yield true; }
                 Player target = Bukkit.getPlayer(args[1]);
@@ -215,23 +174,17 @@ public class MoralityAdminCommand implements CommandExecutor, TabCompleter {
                 yield true;
             }
 
-            case "givehead" -> {
-                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /moralityadmin givehead <player> [count]")); yield true; }
-                Player target = Bukkit.getPlayer(args[1]);
-                if (target == null) { sender.sendMessage(Component.text("Player not found.")); yield true; }
-                int count = 1;
-                if (args.length >= 3) {
-                    try {
-                        count = Math.max(1, Math.min(64, Integer.parseInt(args[2])));
-                    } catch (NumberFormatException e) {
-                        sender.sendMessage(Component.text("Invalid count."));
-                        yield true;
+            case "golemstatus" -> {
+                sender.sendMessage(Component.text("=== Village Golem Status ==="));
+                sender.sendMessage(Component.text("Enabled: " + plugin.getConfigManager().isVillageGolemEnabled()));
+                sender.sendMessage(Component.text("Tracked: " + plugin.getVillageGolemManager().getTrackedCount()));
+                sender.sendMessage(Component.text("Debug mode: " + plugin.getConfigManager().isDebug()));
+                if (sender instanceof Player player) {
+                    sender.sendMessage(Component.text("Nearby golems (64 block radius):"));
+                    for (String line : plugin.getVillageGolemManager().getDebugInfo(player.getLocation(), 64)) {
+                        sender.sendMessage(Component.text(line));
                     }
                 }
-                ItemStack head = plugin.getGolemBossManager().createVillagerHead();
-                head.setAmount(count);
-                target.getInventory().addItem(head);
-                sender.sendMessage(Component.text("Gave " + count + " villager head(s) to " + target.getName() + "."));
                 yield true;
             }
 
@@ -399,7 +352,7 @@ public class MoralityAdminCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase();
         if (args.length == 2) {
             boolean needsPlayer = Set.of("setscore", "addscore", "resetscore", "settier",
-                    "givetotem", "givehead").contains(sub);
+                    "givetotem").contains(sub);
             if (needsPlayer) return onlinePlayerNames(args[1]);
             if (sub.equals("list"))
                 return filterPrefix(Arrays.asList("bad", "good", "neutral"), args[1]);

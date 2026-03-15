@@ -126,15 +126,16 @@ public class WraithManager implements Listener {
                 double teleportRange = plugin.getConfigManager().getWraithTeleportRangeBlocks();
 
                 if (distSq > teleportRange * teleportRange) {
-                    // If the owner is underground, despawn instead of teleporting
-                    if (owner.getWorld().getHighestBlockYAt(owner.getLocation()) > owner.getLocation().getBlockY()) {
+                    // If the owner is deep underground, despawn instead of teleporting
+                    int depth = owner.getWorld().getHighestBlockYAt(owner.getLocation()) - owner.getLocation().getBlockY();
+                    if (depth >= 10) {
                         despawnWraith(wraithUuid);
                         it.remove();
                         wraithToOwner.remove(wraithUuid);
                         MoralityEngine.debug("Wraith despawned for " + owner.getName() + " — owner is underground");
                         continue;
                     }
-                    wraith.teleport(owner.getLocation().clone().add(0, 2, 0));
+                    wraith.teleport(owner.getLocation().clone().add(0, 8, 0));
                 } else if (distSq > 9.0) { // more than 3 blocks
                     wraith.getPathfinder().moveTo(owner.getLocation(), 1.2);
                 }
@@ -205,8 +206,9 @@ public class WraithManager implements Listener {
         // Sleep deprivation check (mirrors vanilla phantom logic)
         int minTicks = plugin.getConfigManager().getWraithMinSleepDeprivationTicks();
         if (minTicks > 0 && player.getStatistic(Statistic.TIME_SINCE_REST) < minTicks) return false;
-        // Wraiths, like phantoms, require open sky above the player
-        if (world.getHighestBlockYAt(player.getLocation()) > player.getLocation().getBlockY()) return false;
+        // Only block spawning if the player is deep underground (10+ blocks below surface)
+        int depth = world.getHighestBlockYAt(player.getLocation()) - player.getLocation().getBlockY();
+        if (depth >= 10) return false;
         return true;
     }
 

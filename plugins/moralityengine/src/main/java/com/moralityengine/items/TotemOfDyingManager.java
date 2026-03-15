@@ -35,7 +35,7 @@ import java.util.UUID;
  * Manages the Totem of Dying custom item.
  *
  * Flow:
- * 1. Admin drops a Totem of Dying from the GolemBossManager.
+ * 1. Admin gives a Totem of Dying via /moralityadmin givetotem.
  * 2. Player combines it with an armour piece via anvil (or crafting table).
  * 3. The resulting item is "cursed armour" — tagged with PDC.
  * 4. When the player would die while wearing cursed armour, death is prevented,

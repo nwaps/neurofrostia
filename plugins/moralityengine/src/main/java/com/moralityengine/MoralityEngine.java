@@ -1,7 +1,6 @@
 package com.moralityengine;
 
 import com.moralityengine.analytics.AnalyticsManager;
-import com.moralityengine.boss.GolemBossManager;
 import com.moralityengine.commands.MoralityAdminCommand;
 import com.moralityengine.commands.MoralityCommand;
 import com.moralityengine.corelife.CoreLifeHook;
@@ -43,7 +42,6 @@ public class MoralityEngine extends JavaPlugin {
     private TotemOfDyingManager totemOfDyingManager;
     private TotemOfUndyingManager totemOfUndyingManager;
     private MoralityCompassManager moralityCompassManager;
-    private GolemBossManager golemBossManager;
     private VillageGolemManager villageGolemManager;
     private LocatorBarManager locatorBarManager;
     private FrostVignetteManager frostVignetteManager;
@@ -96,13 +94,9 @@ public class MoralityEngine extends JavaPlugin {
         moralityCompassManager = new MoralityCompassManager(this);
         getServer().getPluginManager().registerEvents(moralityCompassManager, this);
 
-        // Boss — villageGolemManager must be created before reattachAfterRestart() so
-        // that reattach() can call villageGolemManager.trackGolem() without NPE.
-        golemBossManager = new GolemBossManager(this);
-        getServer().getPluginManager().registerEvents(golemBossManager, this);
+        // Village golem enhancements
         villageGolemManager = new VillageGolemManager(this);
         getServer().getPluginManager().registerEvents(villageGolemManager, this);
-        golemBossManager.reattachAfterRestart();
 
         // HUD
         locatorBarManager = new LocatorBarManager(this);
@@ -162,7 +156,6 @@ public class MoralityEngine extends JavaPlugin {
     public TotemOfDyingManager getTotemOfDyingManager() { return totemOfDyingManager; }
     public TotemOfUndyingManager getTotemOfUndyingManager() { return totemOfUndyingManager; }
     public MoralityCompassManager getMoralityCompassManager() { return moralityCompassManager; }
-    public GolemBossManager getGolemBossManager() { return golemBossManager; }
     public VillageGolemManager getVillageGolemManager() { return villageGolemManager; }
     public LocatorBarManager getLocatorBarManager() { return locatorBarManager; }
     public FrostVignetteManager getFrostVignetteManager() { return frostVignetteManager; }

@@ -133,6 +133,10 @@ jobs:
             cp "$ARTIFACT_DIR"*.jar "${PLUGINS_DIR}/"
           done
 
+          # maven-shade-plugin produces original-*.jar alongside the shaded JAR;
+          # remove any that were copied into the plugins directory
+          find "${PLUGINS_DIR}" -maxdepth 1 -iname "original-*.jar" -delete
+
       - name: Restart Server
         run: |
           curl -sf -X POST "https://localhost:8443/api/v2/servers/${{ secrets.PROD_CRAFTY_SERVER_GUID }}/action/restart_server" \

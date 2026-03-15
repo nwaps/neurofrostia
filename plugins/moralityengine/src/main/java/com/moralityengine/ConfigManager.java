@@ -44,10 +44,6 @@ public class ConfigManager {
     private String badKillNeutralGoodMode;
     private double badKillNeutralGoodPercentage;
     private boolean badKillNeutralGoodEnabled;
-    private double badKillGolemBossPoints;
-    private String badKillGolemBossMode;
-    private double badKillGolemBossPercentage;
-    private boolean badKillGolemBossEnabled;
     private double badKillIronGolemPoints;
     private String badKillIronGolemMode;
     private double badKillIronGolemPercentage;
@@ -176,19 +172,13 @@ public class ConfigManager {
     private double villageGolemWindSurgePower;
     private int villageGolemWindSurgeCooldownSeconds;
     private double villageGolemWindSurgePathThreshold;
+    private double villageGolemAggroRadius;
 
-    // Golem boss
-    private boolean golemBossEnabled;
-    private Material golemSpawnBlock;
-    private double golemHealth;
-    private double golemAttackDamage;
-    private double golemMovementSpeed;
-    private List<String> golemEffects;
-    private double golemTotemDropRate;
-    private int golemRespawnCooldownMinutes;
-    private int golemAggroRangeBlocks;
-    private double villagerHeadDropRate;
-    private String villagerHeadTextureHash;
+    // Village golem stats
+    private double villageGolemHealth;
+    private double villageGolemAttackDamage;
+    private double villageGolemMovementSpeed;
+    private List<String> villageGolemEffects;
 
     // Compass
     private int compassBasicTierMax;
@@ -261,10 +251,6 @@ public class ConfigManager {
         badKillNeutralGoodMode = c.getString("bad-progress.kill-neutral-good-player.mode", "flat").toLowerCase();
         badKillNeutralGoodPercentage = c.getDouble("bad-progress.kill-neutral-good-player.percentage", 10.0);
         badKillNeutralGoodEnabled = c.getBoolean("bad-progress.kill-neutral-good-player.enabled", true);
-        badKillGolemBossPoints = c.getDouble("bad-progress.kill-golem-boss.points", 40.0);
-        badKillGolemBossMode = c.getString("bad-progress.kill-golem-boss.mode", "flat").toLowerCase();
-        badKillGolemBossPercentage = c.getDouble("bad-progress.kill-golem-boss.percentage", 5.0);
-        badKillGolemBossEnabled = c.getBoolean("bad-progress.kill-golem-boss.enabled", true);
         badKillIronGolemPoints = c.getDouble("bad-progress.kill-iron-golem.points", 20.0);
         badKillIronGolemMode = c.getString("bad-progress.kill-iron-golem.mode", "flat").toLowerCase();
         badKillIronGolemPercentage = c.getDouble("bad-progress.kill-iron-golem.percentage", 5.0);
@@ -423,18 +409,12 @@ public class ConfigManager {
         villageGolemWindSurgePower = c.getDouble("village-golem.wind-surge-power", 2.5);
         villageGolemWindSurgeCooldownSeconds = c.getInt("village-golem.wind-surge-cooldown-seconds", 8);
         villageGolemWindSurgePathThreshold = c.getDouble("village-golem.wind-surge-path-threshold", 3.0);
+        villageGolemAggroRadius = c.getDouble("village-golem.aggro-radius", 32.0);
 
-        golemBossEnabled = c.getBoolean("golem-boss.enabled", true);
-        golemSpawnBlock = parseMaterial(c.getString("golem-boss.spawn-block", "OBSIDIAN"));
-        golemHealth = c.getDouble("golem-boss.health", 200.0);
-        golemAttackDamage = c.getDouble("golem-boss.attack-damage", 15.0);
-        golemMovementSpeed = c.getDouble("golem-boss.movement-speed", 0.35);
-        golemEffects = c.getStringList("golem-boss.effects");
-        golemTotemDropRate = c.getDouble("golem-boss.totem-drop-rate", 1.0);
-        golemRespawnCooldownMinutes = c.getInt("golem-boss.respawn-cooldown-minutes", 60);
-        golemAggroRangeBlocks = c.getInt("golem-boss.aggro-range-blocks", 48);
-        villagerHeadDropRate = c.getDouble("villager.head-drop-rate", 0.05);
-        villagerHeadTextureHash = c.getString("villager.head-texture-hash", "");
+        villageGolemHealth = c.getDouble("village-golem.health", 200.0);
+        villageGolemAttackDamage = c.getDouble("village-golem.attack-damage", 15.0);
+        villageGolemMovementSpeed = c.getDouble("village-golem.movement-speed", 0.35);
+        villageGolemEffects = c.getStringList("village-golem.effects");
 
         compassBasicTierMax = c.getInt("compass.basic-tier-max", 2);
         compassAdvancedTierMin = c.getInt("compass.advanced-tier-min", 3);
@@ -519,10 +499,6 @@ public class ConfigManager {
     public String getBadKillNeutralGoodMode() { return badKillNeutralGoodMode; }
     public double getBadKillNeutralGoodPercentage() { return badKillNeutralGoodPercentage; }
     public boolean isBadKillNeutralGoodEnabled() { return badKillNeutralGoodEnabled; }
-    public double getBadKillGolemBossPoints() { return badKillGolemBossPoints; }
-    public String getBadKillGolemBossMode() { return badKillGolemBossMode; }
-    public double getBadKillGolemBossPercentage() { return badKillGolemBossPercentage; }
-    public boolean isBadKillGolemBossEnabled() { return badKillGolemBossEnabled; }
     public double getBadKillIronGolemPoints() { return badKillIronGolemPoints; }
     public String getBadKillIronGolemMode() { return badKillIronGolemMode; }
     public double getBadKillIronGolemPercentage() { return badKillIronGolemPercentage; }
@@ -639,17 +615,11 @@ public class ConfigManager {
     public double getVillageGolemWindSurgePower() { return villageGolemWindSurgePower; }
     public int getVillageGolemWindSurgeCooldownSeconds() { return villageGolemWindSurgeCooldownSeconds; }
     public double getVillageGolemWindSurgePathThreshold() { return villageGolemWindSurgePathThreshold; }
-    public boolean isGolemBossEnabled() { return golemBossEnabled; }
-    public Material getGolemSpawnBlock() { return golemSpawnBlock; }
-    public double getGolemHealth() { return golemHealth; }
-    public double getGolemAttackDamage() { return golemAttackDamage; }
-    public double getGolemMovementSpeed() { return golemMovementSpeed; }
-    public List<String> getGolemEffects() { return golemEffects; }
-    public double getGolemTotemDropRate() { return golemTotemDropRate; }
-    public int getGolemRespawnCooldownMinutes() { return golemRespawnCooldownMinutes; }
-    public int getGolemAggroRangeBlocks() { return golemAggroRangeBlocks; }
-    public double getVillagerHeadDropRate() { return villagerHeadDropRate; }
-    public String getVillagerHeadTextureHash() { return villagerHeadTextureHash; }
+    public double getVillageGolemAggroRadius() { return villageGolemAggroRadius; }
+    public double getVillageGolemHealth() { return villageGolemHealth; }
+    public double getVillageGolemAttackDamage() { return villageGolemAttackDamage; }
+    public double getVillageGolemMovementSpeed() { return villageGolemMovementSpeed; }
+    public List<String> getVillageGolemEffects() { return villageGolemEffects; }
     public int getCompassBasicTierMax() { return compassBasicTierMax; }
     public int getCompassAdvancedTierMin() { return compassAdvancedTierMin; }
     public int getCompassMaxUses() { return compassMaxUses; }

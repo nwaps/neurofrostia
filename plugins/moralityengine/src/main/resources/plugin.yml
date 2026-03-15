@@ -2,7 +2,7 @@ name: MoralityEngine
 version: ${project.version}
 main: com.moralityengine.MoralityEngine
 api-version: '1.21'
-description: Morality scoring, tier perks, custom items, golem boss, and player feedback
+description: Morality scoring, tier perks, custom items, and player feedback
 
 softdepend:
   - CoreLife
@@ -13,7 +13,7 @@ commands:
     usage: /morality [player]
   moralityadmin:
     description: MoralityEngine admin and debug commands
-    usage: /moralityadmin <setscore|addscore|resetscore|resetall|settier|list|bossinfo|spawnboss|resetcooldown|givetotem|givehead|reload|froststatus|analytics>
+    usage: /moralityadmin <setscore|addscore|resetscore|resetall|settier|list|givetotem|reload|froststatus|golemstatus|analytics>
     permission: moralityengine.admin
     aliases: [ma]
 
