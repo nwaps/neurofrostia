@@ -10,6 +10,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -19,24 +20,22 @@ import org.bukkit.util.Vector;
 import java.util.*;
 
 /**
- * Enhances village-spawned and player-built iron golems with boss-tier stats and a wind surge
+ * Enhances village-spawned and player-built iron golems with custom stats and a wind surge
  * ability that fires when the golem cannot pathfind to its current target.
  *
  * Intercepted spawn reasons:
  *   NATURAL         — village-AI-summoned golems
  *   BUILD_IRONGOLEM — spawned by a player placing a pumpkin on an iron T-pattern
  *
- * Wind surge fires when the golem's path to the target is blocked. Two conditions are
- * evaluated independently so that both deep walls and shallow pillars trigger correctly:
+ * Aggro model:
+ *   When a player damages any tracked golem, ALL tracked golems within the configured
+ *   aggro-radius are provoked to attack that player. Provoked state persists for
+ *   PROVOKED_MS and is enforced via two mechanisms:
+ *     (a) EntityTargetEvent listener blocks vanilla AI from clearing the target.
+ *     (b) Fast enforce loop (every 3 ticks) re-applies setTarget + pathfinder.moveTo
+ *         in case the event listener misses an edge case.
  *
- *   (a) Path is null or its terminal point is farther than wind-surge-path-threshold
- *       blocks from the player in 3D space (handles walls, gaps, deep elevation).
- *   (b) The path terminal point is more than ~1.5 blocks below the player (handles
- *       pillaring up just 2-3 blocks — golem reaches the base but can't melee upward).
- *
- * Target memory: vanilla AI drops the target when the player goes above melee range.
- * To handle this, the last active player target is remembered for TARGET_MEMORY_MS
- * milliseconds so the surge can still fire right after the target is dropped.
+ * Wind surge fires when the golem's path to the target is blocked (checked every 40 ticks).
  */
 public class VillageGolemManager implements Listener {
 
@@ -59,7 +58,8 @@ public class VillageGolemManager implements Listener {
 
     /**
      * Provoked targets set by the damage event. Vanilla AI clears setTarget() on the
-     * next tick for player-friendly golems, so the AI loop must re-apply it each cycle.
+     * next tick for player-friendly golems, so we block this via EntityTargetEvent and
+     * re-apply via a fast enforce loop.
      * Entries expire after PROVOKED_MS so golems don't chase forever.
      */
     private final Map<UUID, UUID> provokedTarget     = new HashMap<>(); // golem → player
@@ -77,7 +77,8 @@ public class VillageGolemManager implements Listener {
     public VillageGolemManager(MoralityEngine plugin) {
         this.plugin = plugin;
         this.villageGolemKey = new NamespacedKey(plugin, "village_golem");
-        startAiLoop();
+        startEnforceLoop();
+        startWindSurgeLoop();
     }
 
     // ── Spawn interception ────────────────────────────────────────────────────
@@ -92,7 +93,11 @@ public class VillageGolemManager implements Listener {
         golem.setPlayerCreated(false); // allow vanilla AI to target players
         golem.getPersistentDataContainer().set(villageGolemKey, PersistentDataType.BYTE, (byte) 1);
         trackedGolems.add(golem.getUniqueId());
+        MoralityEngine.debug("Tracked village golem " + golem.getUniqueId()
+                + " (reason=" + event.getSpawnReason() + ")");
     }
+
+    // ── Damage → provoke ─────────────────────────────────────────────────────
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onGolemDamaged(EntityDamageByEntityEvent event) {
@@ -110,6 +115,8 @@ public class VillageGolemManager implements Listener {
         }
 
         long now = System.currentTimeMillis();
+        MoralityEngine.debug("Golem " + hitGolem.getUniqueId() + " hit by " + attacker.getName()
+                + " — provoking self + nearby");
         provoke(hitGolem, attacker, now);
 
         double radius = plugin.getConfigManager().getVillageGolemAggroRadius();
@@ -126,8 +133,51 @@ public class VillageGolemManager implements Listener {
         }
     }
 
+    /**
+     * Blocks vanilla AI from clearing a provoked target. Without this, the golem's
+     * NearestAttackableTargetGoal or other AI goals override our setTarget() within
+     * a single tick, making provoked aggro unreliable.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onGolemRetarget(EntityTargetEvent event) {
+        if (!(event.getEntity() instanceof IronGolem golem)) return;
+        UUID golemId = golem.getUniqueId();
+        if (!trackedGolems.contains(golemId)) return;
+
+        UUID targetId = provokedTarget.get(golemId);
+        if (targetId == null) return;
+
+        long elapsed = System.currentTimeMillis() - provokedTargetTime.getOrDefault(golemId, 0L);
+        if (elapsed > PROVOKED_MS) {
+            // Provocation expired — let vanilla AI do what it wants
+            provokedTarget.remove(golemId);
+            provokedTargetTime.remove(golemId);
+            return;
+        }
+
+        // If vanilla AI is trying to clear or change the target, block it
+        Entity newTarget = event.getTarget();
+        if (newTarget instanceof Player p && p.getUniqueId().equals(targetId)) {
+            return; // already targeting the right player
+        }
+
+        Player provokedPlayer = Bukkit.getPlayer(targetId);
+        if (provokedPlayer == null || !provokedPlayer.isOnline()) {
+            provokedTarget.remove(golemId);
+            provokedTargetTime.remove(golemId);
+            return;
+        }
+
+        // Cancel the vanilla retarget and force our provoked target
+        event.setCancelled(true);
+        MoralityEngine.debug("Blocked retarget on golem " + golemId
+                + " (vanilla wanted: " + (newTarget == null ? "null" : newTarget.getType())
+                + ", forcing: " + provokedPlayer.getName() + ")");
+    }
+
     private void provoke(IronGolem golem, Player attacker, long now) {
         golem.setTarget(attacker);
+        golem.getPathfinder().moveTo(attacker, 1.2);
         provokedTarget.put(golem.getUniqueId(), attacker.getUniqueId());
         provokedTargetTime.put(golem.getUniqueId(), now);
         lastKnownTarget.put(golem.getUniqueId(), attacker.getUniqueId());
@@ -153,9 +203,14 @@ public class VillageGolemManager implements Listener {
         }
     }
 
-    // ── AI loop ───────────────────────────────────────────────────────────────
+    // ── Enforce loop (fast — every 3 ticks) ──────────────────────────────────
 
-    private void startAiLoop() {
+    /**
+     * Fast loop that re-applies provoked targets and pathfinder movement.
+     * This runs every 3 ticks (~150ms) as a safety net in case EntityTargetEvent
+     * doesn't fire for some edge case. Also handles cleanup of dead/unloaded golems.
+     */
+    private void startEnforceLoop() {
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -176,8 +231,23 @@ public class VillageGolemManager implements Listener {
                         continue;
                     }
 
-                    // Re-apply provoked target every tick so vanilla AI can't clear it
                     enforceProvokedTarget(golem);
+                }
+            }
+        }.runTaskTimer(plugin, 3L, 3L);
+    }
+
+    // ── Wind surge loop (slow — every 40 ticks) ─────────────────────────────
+
+    private void startWindSurgeLoop() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!plugin.getConfigManager().isVillageGolemEnabled()) return;
+
+                for (UUID id : trackedGolems) {
+                    IronGolem golem = findGolem(id);
+                    if (golem == null || golem.isDead() || !golem.isValid()) continue;
 
                     Player player = resolveTarget(golem);
                     if (player == null) continue;
@@ -193,8 +263,8 @@ public class VillageGolemManager implements Listener {
     }
 
     /**
-     * If the golem has an active provoked target, re-apply setTarget() so vanilla AI
-     * cannot silently clear it. Expired or invalid provoked entries are cleaned up.
+     * If the golem has an active provoked target, re-apply setTarget() and pathfinder
+     * movement so vanilla AI cannot silently clear it.
      */
     private void enforceProvokedTarget(IronGolem golem) {
         UUID golemId = golem.getUniqueId();
@@ -217,8 +287,9 @@ public class VillageGolemManager implements Listener {
             return;
         }
 
-        // Re-apply every cycle — vanilla AI will have cleared it
+        // Re-apply every cycle
         golem.setTarget(player);
+        golem.getPathfinder().moveTo(player, 1.2);
     }
 
     /**
@@ -228,8 +299,7 @@ public class VillageGolemManager implements Listener {
      *   1. Live target from vanilla AI — always preferred and refreshes the memory.
      *   2. Provoked target from the damage event — persists for PROVOKED_MS.
      *   3. Last-known target within TARGET_MEMORY_MS — used when vanilla AI drops
-     *      the target immediately after the player pillars up, so we don't miss
-     *      the first few surge windows while the golem is still underneath them.
+     *      the target immediately after the player pillars up.
      */
     private Player resolveTarget(IronGolem golem) {
         UUID golemId = golem.getUniqueId();
@@ -260,20 +330,12 @@ public class VillageGolemManager implements Listener {
 
         Player last = Bukkit.getPlayer(lastId);
         if (last == null || !last.isOnline()) return null;
-        // Drop the memory if the player has wandered far enough that the golem
-        // genuinely wouldn't care about them anymore.
         if (golem.getLocation().distanceSquared(last.getLocation()) > 32.0 * 32.0) return null;
         return last;
     }
 
     /**
-     * Returns true if the golem has a viable path to the player — meaning the path
-     * exists, terminates within the configured 3D distance threshold, AND the player
-     * is not more than ~1.5 blocks above the path's terminal point.
-     *
-     * The height guard is evaluated independently from the distance threshold so that
-     * a 2-3 block pillar (where the path endpoint is geometrically "close" in 3D but
-     * still above melee reach) correctly returns false.  Iron golems cannot jump.
+     * Returns true if the golem has a viable path to the player.
      */
     private boolean canPathTo(IronGolem golem, Player player) {
         var result = golem.getPathfinder().findPath(player);
@@ -282,13 +344,10 @@ public class VillageGolemManager implements Listener {
         Location finalPoint = result.getFinalPoint();
         if (finalPoint == null) return false;
 
-        // Check 1 — path terminates too far away (wall, gap, deep elevation)
         double threshold = plugin.getConfigManager().getVillageGolemWindSurgePathThreshold();
         if (finalPoint.distanceSquared(player.getLocation()) > threshold * threshold) return false;
 
-        // Check 2 — player is above the path endpoint (pillar-up scenario)
-        // Golems cannot jump; anything more than ~1.5 blocks above the highest
-        // reachable point is out of melee reach regardless of XZ proximity.
+        // Player is above the path endpoint (pillar-up scenario)
         if (player.getLocation().getY() > finalPoint.getY() + 1.5) return false;
 
         return true;
@@ -318,11 +377,54 @@ public class VillageGolemManager implements Listener {
         world.playSound(eyeLoc, Sound.ENTITY_WIND_CHARGE_WIND_BURST, SoundCategory.HOSTILE, 1.5f, 0.85f);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Debug / admin helpers ─────────────────────────────────────────────────
 
     public boolean isVillageGolem(IronGolem golem) {
         return golem.getPersistentDataContainer().has(villageGolemKey, PersistentDataType.BYTE);
     }
+
+    /** Returns tracked golem count. */
+    public int getTrackedCount() {
+        return trackedGolems.size();
+    }
+
+    /** Returns a snapshot of debug info for each tracked golem near the given location. */
+    public List<String> getDebugInfo(Location origin, double radius) {
+        List<String> lines = new ArrayList<>();
+        double radiusSq = radius * radius;
+
+        for (UUID id : trackedGolems) {
+            IronGolem golem = findGolem(id);
+            if (golem == null || golem.isDead()) {
+                lines.add("  " + id.toString().substring(0, 8) + " — DEAD/UNLOADED");
+                continue;
+            }
+            if (!golem.getWorld().equals(origin.getWorld())) continue;
+            if (golem.getLocation().distanceSquared(origin) > radiusSq) continue;
+
+            String shortId = id.toString().substring(0, 8);
+            LivingEntity target = golem.getTarget();
+            String targetStr = target instanceof Player p ? p.getName() : (target == null ? "none" : target.getType().name());
+
+            UUID provId = provokedTarget.get(id);
+            String provStr = "none";
+            if (provId != null) {
+                long elapsed = System.currentTimeMillis() - provokedTargetTime.getOrDefault(id, 0L);
+                Player provPlayer = Bukkit.getPlayer(provId);
+                provStr = (provPlayer != null ? provPlayer.getName() : "offline")
+                        + " (" + (PROVOKED_MS - elapsed) / 1000 + "s left)";
+            }
+
+            double dist = Math.sqrt(golem.getLocation().distanceSquared(origin));
+            lines.add(String.format("  %s — %.0fm away | hp=%.0f | target=%s | provoked=%s | playerCreated=%s",
+                    shortId, dist, golem.getHealth(), targetStr, provStr, golem.isPlayerCreated()));
+        }
+
+        if (lines.isEmpty()) lines.add("  (no tracked golems within " + (int) radius + " blocks)");
+        return lines;
+    }
+
+    // ── Internal helpers ──────────────────────────────────────────────────────
 
     private IronGolem findGolem(UUID id) {
         for (World world : Bukkit.getWorlds()) {

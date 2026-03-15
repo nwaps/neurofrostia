@@ -42,7 +42,7 @@ public class MoralityAdminCommand implements CommandExecutor, TabCompleter {
     private static final List<String> SUBS = Arrays.asList(
             "setscore", "addscore", "resetscore", "resetall",
             "settier", "list",
-            "givetotem", "reload", "froststatus", "analytics"
+            "givetotem", "reload", "froststatus", "golemstatus", "analytics"
     );
 
     private static final List<String> TIERS = Arrays.asList(
@@ -171,6 +171,20 @@ public class MoralityAdminCommand implements CommandExecutor, TabCompleter {
                 if (totem == null) { sender.sendMessage(Component.text("Invalid totem type. Use 'dying' or 'undying'.")); yield true; }
                 target.getInventory().addItem(totem);
                 sender.sendMessage(Component.text("Gave totem of " + args[2].toLowerCase() + " to " + target.getName() + "."));
+                yield true;
+            }
+
+            case "golemstatus" -> {
+                sender.sendMessage(Component.text("=== Village Golem Status ==="));
+                sender.sendMessage(Component.text("Enabled: " + plugin.getConfigManager().isVillageGolemEnabled()));
+                sender.sendMessage(Component.text("Tracked: " + plugin.getVillageGolemManager().getTrackedCount()));
+                sender.sendMessage(Component.text("Debug mode: " + plugin.getConfigManager().isDebug()));
+                if (sender instanceof Player player) {
+                    sender.sendMessage(Component.text("Nearby golems (64 block radius):"));
+                    for (String line : plugin.getVillageGolemManager().getDebugInfo(player.getLocation(), 64)) {
+                        sender.sendMessage(Component.text(line));
+                    }
+                }
                 yield true;
             }
 

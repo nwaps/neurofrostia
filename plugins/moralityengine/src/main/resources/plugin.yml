@@ -13,7 +13,7 @@ commands:
     usage: /morality [player]
   moralityadmin:
     description: MoralityEngine admin and debug commands
-    usage: /moralityadmin <setscore|addscore|resetscore|resetall|settier|list|givetotem|reload|froststatus|analytics>
+    usage: /moralityadmin <setscore|addscore|resetscore|resetall|settier|list|givetotem|reload|froststatus|golemstatus|analytics>
     permission: moralityengine.admin
     aliases: [ma]
 
