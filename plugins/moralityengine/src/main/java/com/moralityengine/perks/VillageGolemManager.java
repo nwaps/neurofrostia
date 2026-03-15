@@ -100,6 +100,8 @@ public class VillageGolemManager implements Listener {
             return;
         }
 
+        hitGolem.setTarget(attacker);
+
         double radius = plugin.getConfigManager().getVillageGolemAggroRadius();
         if (radius <= 0) return;
         double radiusSq = radius * radius;
