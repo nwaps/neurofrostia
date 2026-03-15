@@ -442,11 +442,11 @@ public class VillageGolemManager implements Listener {
 
         surgeCooldowns.put(golem.getUniqueId(), System.currentTimeMillis());
 
-        Vector direction = player.getLocation().toVector()
-                .subtract(golem.getLocation().toVector())
+        Vector direction = golem.getLocation().toVector()
+                .subtract(player.getLocation().toVector())
                 .normalize()
                 .multiply(plugin.getConfigManager().getVillageGolemWindSurgePower())
-                .add(new Vector(0, 0.3, 0));
+                .add(new Vector(0, 0.15, 0));
 
         player.setVelocity(direction);
 
