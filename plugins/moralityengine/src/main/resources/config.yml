@@ -58,15 +58,7 @@ bad-progress:
     percentage: 10.0    # (mode: percentage) percentage of the player's current morality score magnitude to deduct
     enabled: true
 
-  # Killing the Golem Boss. Points are split evenly among all players who dealt damage.
-  kill-golem-boss:
-    points: 40.0
-    mode: flat
-    percentage: 5.0
-    enabled: true
-
-  # Killing a regular (non-boss) iron golem. Does not apply to the Golem Boss — that
-  # is handled separately above. Useful for discouraging players from destroying village
+  # Killing an iron golem. Useful for discouraging players from destroying village
   # defences. Disabled by default.
   kill-iron-golem:
     points: 20.0
@@ -585,12 +577,25 @@ totem-of-undying:
   no-drop-on-bad-morality-kill: true
 
 # ─── Village Golem Enhancement ────────────────────────────────────────────────
-# Enhances naturally-spawned village golems (VILLAGE_GOLEM) and player-built golems
-# (BUILD_IRONGOLEM) with the same stats as the Golem Boss and a wind surge ability.
-# Stats are read directly from the golem-boss section so they stay in sync automatically.
+# Enhances naturally-spawned village golems (NATURAL) and player-built golems
+# (BUILD_IRONGOLEM) with custom stats and a wind surge ability.
 village-golem:
   # Set to false to disable all enhancements — golems spawn with vanilla stats and no wind surge.
   enabled: true
+
+  # Max health (in half-hearts). Vanilla iron golem default is 100.
+  health: 200.0
+
+  # Melee attack damage (in half-hearts). Vanilla iron golem default is ~7.5–21.5.
+  attack-damage: 15.0
+
+  # Movement speed attribute value. Vanilla iron golem default is 0.25.
+  movement-speed: 0.35
+
+  # Potion effects applied on spawn. Format: EFFECT_TYPE:amplifier (1-indexed).
+  effects:
+    - RESISTANCE:1
+    - STRENGTH:1
 
   # Velocity multiplier applied to the wind surge knockback.
   # Higher values knock the player farther.  Vanilla-feel range: 1.5–3.0.
@@ -610,55 +615,6 @@ village-golem:
   # When a player attacks an enhanced golem, all other enhanced golems within this
   # radius (in blocks) will aggro onto the attacker.  Set to 0 to disable.
   aggro-radius: 32.0
-
-# ─── Golem Boss ───────────────────────────────────────────────────────────────
-# The Golem Boss is spawned by placing three villager heads in the Wither-skull pattern
-# on top of spawn-block blocks. The blocks and heads are consumed on spawn.
-golem-boss:
-  # Set to false to disable the Golem Boss entirely. The spawn pattern will not trigger
-  # and /moralityadmin spawnboss will do nothing. Villager head drops are unaffected.
-  enabled: true
-
-  # Block type used as the base of the Wither-pattern. Must be a valid Material name.
-  spawn-block: "OBSIDIAN"
-
-  # Boss max health (in half-hearts).
-  health: 200.0
-
-  # Boss melee attack damage (in half-hearts).
-  attack-damage: 15.0
-
-  # Boss movement speed attribute value. Vanilla iron golem default is 0.25.
-  movement-speed: 0.35
-
-  # Potion effects applied to the boss on spawn. Format: EFFECT_TYPE:amplifier (0-indexed).
-  effects:
-    - RESISTANCE:1
-    - STRENGTH:1
-
-  # Drop chance for a Totem of Dying on boss death (0.0–1.0). Separate from totem-of-dying.drop-rate.
-  totem-drop-rate: 1.0
-
-  # Minutes that must elapse after the boss dies before a new one can be spawned.
-  # Set to 0 to disable the cooldown entirely (boss can be re-spawned immediately).
-  respawn-cooldown-minutes: 0
-
-  # Block radius within which the Golem Boss will actively target bad morality players.
-  # The boss re-evaluates its target every second within this range.
-  aggro-range-blocks: 48
-
-# ─── Villager Head Drop ───────────────────────────────────────────────────────
-villager:
-  # Chance a villager drops their head on death (0.0–1.0).
-  # Villager heads are required to spawn the Golem Boss and act as the primary limiter on boss frequency.
-  head-drop-rate: 0.05
-
-  # Skull texture hash for the villager head item.
-  # This is the hash portion of the skin URL from textures.minecraft.net.
-  # To get a value: go to minecraft-heads.com, find a villager head, and copy the hash
-  # from the "Minecraft-URL" field (everything after "/texture/").
-  # Leave empty to use the default player head appearance.
-  head-texture-hash: "ffa9b5a8a998c60d57f60e8e25beb7ca5e9b6db32ae53bf56c197e456a9dd750"
 
 # ─── Morality Compass ─────────────────────────────────────────────────────────
 # The Morality Compass is a craftable item usable only by bad morality players.
@@ -831,29 +787,11 @@ morality-hud:
 #     /moralityadmin list neutral
 #       List only online players who are currently neutral.
 #
-#   GOLEM BOSS
-#     /moralityadmin bossinfo
-#       Show whether a Golem Boss is currently alive, and if not, how long
-#       until the respawn cooldown (golem-boss.respawn-cooldown-minutes) expires.
-#
-#     /moralityadmin spawnboss
-#       Force-spawn a Golem Boss at your current location, bypassing the
-#       cooldown and any existing boss check. Must be run as a player (not console).
-#
-#     /moralityadmin resetcooldown
-#       Reset the Golem Boss respawn cooldown to zero so the boss can be
-#       spawned immediately via the pattern or /moralityadmin spawnboss.
-#
 #   ITEM SPAWNING
 #     /moralityadmin givetotem <player> <dying|undying>
 #       Give a player a totem.
-#         dying   — the custom Totem of Dying (normally dropped by the Golem Boss)
+#         dying   — the custom Totem of Dying
 #         undying — a vanilla Totem of Undying
-#
-#     /moralityadmin givehead <player> [count]
-#       Give a player one or more villager heads (used in the boss spawn pattern).
-#       Count defaults to 1, maximum 64.
-#       Useful for testing boss spawning without needing to kill villagers.
 #
 #   FROST VIGNETTE
 #     /moralityadmin froststatus

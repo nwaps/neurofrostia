@@ -58,9 +58,8 @@ public class ProgressionManager implements Listener {
             return;
         }
 
-        // Kill regular iron golem (not a Golem Boss) → bad morality
+        // Kill iron golem → bad morality
         if (victim instanceof IronGolem golem
-                && !plugin.getGolemBossManager().isGolemBoss(golem)
                 && plugin.getConfigManager().isBadKillIronGolemEnabled()) {
             var cfg = plugin.getConfigManager();
             double delta = ConfigManager.resolveDelta(cfg.getBadKillIronGolemMode(),

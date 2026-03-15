@@ -87,9 +87,9 @@ public class VillageGolemManager implements Listener {
         if (!plugin.getConfigManager().isVillageGolemEnabled()) return;
         if (!(event.getEntity() instanceof IronGolem golem)) return;
         if (!TRACKED_REASONS.contains(event.getSpawnReason())) return;
-        if (plugin.getGolemBossManager().isGolemBoss(golem)) return;
 
         applyBossStats(golem);
+        golem.setPlayerCreated(false); // allow vanilla AI to target players
         golem.getPersistentDataContainer().set(villageGolemKey, PersistentDataType.BYTE, (byte) 1);
         trackedGolems.add(golem.getUniqueId());
     }
@@ -138,16 +138,16 @@ public class VillageGolemManager implements Listener {
         var cfg = plugin.getConfigManager();
 
         AttributeInstance maxHp = golem.getAttribute(Attribute.MAX_HEALTH);
-        if (maxHp != null) maxHp.setBaseValue(cfg.getGolemHealth());
-        golem.setHealth(cfg.getGolemHealth());
+        if (maxHp != null) maxHp.setBaseValue(cfg.getVillageGolemHealth());
+        golem.setHealth(cfg.getVillageGolemHealth());
 
         AttributeInstance atk = golem.getAttribute(Attribute.ATTACK_DAMAGE);
-        if (atk != null) atk.setBaseValue(cfg.getGolemAttackDamage());
+        if (atk != null) atk.setBaseValue(cfg.getVillageGolemAttackDamage());
 
         AttributeInstance spd = golem.getAttribute(Attribute.MOVEMENT_SPEED);
-        if (spd != null) spd.setBaseValue(cfg.getGolemMovementSpeed());
+        if (spd != null) spd.setBaseValue(cfg.getVillageGolemMovementSpeed());
 
-        for (String effectStr : cfg.getGolemEffects()) {
+        for (String effectStr : cfg.getVillageGolemEffects()) {
             PotionEffect effect = parsePotionEffect(effectStr, Integer.MAX_VALUE);
             if (effect != null) golem.addPotionEffect(effect);
         }
@@ -322,14 +322,6 @@ public class VillageGolemManager implements Listener {
 
     public boolean isVillageGolem(IronGolem golem) {
         return golem.getPersistentDataContainer().has(villageGolemKey, PersistentDataType.BYTE);
-    }
-
-    /**
-     * Adds an already-spawned golem (e.g. the Golem Boss) to the wind surge tracking loop
-     * without applying stats or the village_golem PDC key.
-     */
-    public void trackGolem(IronGolem golem) {
-        trackedGolems.add(golem.getUniqueId());
     }
 
     private IronGolem findGolem(UUID id) {
