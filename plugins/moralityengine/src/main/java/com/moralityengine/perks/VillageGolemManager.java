@@ -26,7 +26,7 @@ import java.util.*;
  * ability that fires when the golem cannot pathfind to its current target.
  *
  * Intercepted spawn reasons:
- *   NATURAL         — village-AI-summoned golems
+ *   VILLAGE_DEFENSE — village-AI-spawned golems
  *   BUILD_IRONGOLEM — spawned by a player placing a pumpkin on an iron T-pattern
  *
  * Aggro model:
@@ -72,8 +72,8 @@ public class VillageGolemManager implements Listener {
     private static final long TARGET_MEMORY_MS = 8_000L;
 
     private static final Set<CreatureSpawnEvent.SpawnReason> TRACKED_REASONS = Set.of(
-            CreatureSpawnEvent.SpawnReason.NATURAL,       // village-AI-summoned golems
-            CreatureSpawnEvent.SpawnReason.BUILD_IRONGOLEM // player-built (pumpkin + iron T)
+            CreatureSpawnEvent.SpawnReason.VILLAGE_DEFENSE, // village-AI-spawned golems
+            CreatureSpawnEvent.SpawnReason.BUILD_IRONGOLEM  // player-built (pumpkin + iron T)
     );
 
     public VillageGolemManager(MoralityEngine plugin) {
