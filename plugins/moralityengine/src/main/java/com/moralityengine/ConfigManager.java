@@ -135,6 +135,9 @@ public class ConfigManager {
     private double wraithTeleportRangeBlocks;
     private int wraithMinSleepDeprivationTicks;
 
+    // Drowned trades
+    private int drownedTradeCooldownTicks;
+
     // Villager reactions
     private int vilFleeTrigerTier;
     private int vilFleeRadius;
@@ -375,6 +378,8 @@ public class ConfigManager {
         wraithTeleportRangeBlocks = c.getDouble("bad-perks.wraith-follower.teleport-range-blocks", 48.0);
         wraithMinSleepDeprivationTicks = c.getInt("bad-perks.wraith-follower.min-sleep-deprivation-ticks", 72000);
 
+        drownedTradeCooldownTicks = c.getInt("bad-perks.drowned-trading.cooldown-ticks", 60);
+
         vilFleeTrigerTier = c.getInt("villager-reactions.flee-trigger-tier", 1);
         vilFleeRadius = c.getInt("villager-reactions.flee-radius-blocks", 16);
         vilFleeSpeed = c.getDouble("villager-reactions.flee-speed", 1.2);
@@ -585,6 +590,7 @@ public class ConfigManager {
     public double getWraithAttackRangeBlocks() { return wraithAttackRangeBlocks; }
     public double getWraithTeleportRangeBlocks() { return wraithTeleportRangeBlocks; }
     public int getWraithMinSleepDeprivationTicks() { return wraithMinSleepDeprivationTicks; }
+    public int getDrownedTradeCooldownTicks() { return drownedTradeCooldownTicks; }
     public int getVilFleeTrigerTier() { return vilFleeTrigerTier; }
     public int getVilFleeRadius() { return vilFleeRadius; }
     public double getVilFleeSpeed() { return vilFleeSpeed; }

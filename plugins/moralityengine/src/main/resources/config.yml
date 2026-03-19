@@ -445,6 +445,10 @@ bad-perks:
     # Set to 0 to skip the sleep-deprivation check entirely.
     min-sleep-deprivation-ticks: 72000
 
+  drowned-trading:
+    # Cooldown ticks between subsequent drowned trades
+    cooldown-ticks: 60
+
 # ─── Good Morality Tier Perks ─────────────────────────────────────────────────
 # Same "tiers" map structure as bad-perks. Tier 4 is reserved.
 good-perks:

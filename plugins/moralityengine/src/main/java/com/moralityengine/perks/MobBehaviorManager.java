@@ -2,6 +2,7 @@ package com.moralityengine.perks;
 
 import com.moralityengine.MoralityEngine;
 import com.moralityengine.MoralityTier;
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -10,11 +11,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.entity.CreatureSpawnEvent;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.EntityTargetEvent;
-import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+import org.bukkit.event.entity.*;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -45,10 +42,15 @@ public class MobBehaviorManager implements Listener {
     private static final long REINFORCEMENT_WINDOW_MS = 30_000L;
     /** Maps bad player UUID → timestamps of reinforcement spawns in the current window. */
     private final Map<UUID, ArrayDeque<Long>> reinforcementTimestamps = new HashMap<>();
+    /** Tracks copper ingots that were dropped by bad players */
+    private final Set<UUID> tradableCopper = new HashSet<>();
+    /** Tracks drowned who're in a trade cooldown */
+    private final Set<UUID> tradedDrowneds = new HashSet<>();
 
     public MobBehaviorManager(MoralityEngine plugin) {
         this.plugin = plugin;
         startFleeTask();
+        startCopperTradeTask();
     }
 
     // ── Iron golem aggro ──────────────────────────────────────────────────────
@@ -88,6 +90,61 @@ public class MobBehaviorManager implements Listener {
                 && tier.isBad() && tier.getLevel() >= 1) {
             event.setCancelled(true);
         }
+    }
+
+    // ── Drowned Trading ───────────────────────────────────────────────────────
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onItemThrown(ItemSpawnEvent event) {
+        Item thrown = event.getEntity();
+        if (thrown.getItemStack().getType() != Material.COPPER_INGOT) return;
+        UUID thrower = thrown.getThrower();
+        if (thrower == null) return;
+        Entity ent = Bukkit.getEntity(thrower);
+        if (!(ent instanceof Player)) return;
+        MoralityTier tier = plugin.getMoralityManager().getTier(thrower);
+        if (!tier.isBad() || tier.getLevel() < 1) return;
+
+        // Make copper non-tradable after 30s
+        UUID copperUUID = thrown.getUniqueId();
+        tradableCopper.add(copperUUID);
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () ->
+                tradableCopper.remove(copperUUID), 20L * 10);
+
+        // Drowned copper attraction range, same as piglin attraction to gold
+        double range = 16.0;
+        for (Entity nearby : thrown.getNearbyEntities(range, range, range)) {
+            if (!(nearby instanceof Mob mob) || nearby.getType() != EntityType.DROWNED) continue;
+
+            // Pathfind to thrown copper
+            mob.getPathfinder().moveTo(thrown.getLocation());
+        }
+    }
+
+    private void startCopperTradeTask() {
+        new BukkitRunnable() {
+            public void run() {
+                for (UUID copper : tradableCopper) {
+                    Entity ent = Bukkit.getEntity(copper);
+                    if (ent == null) continue;
+                    for (Entity nearby : ent.getNearbyEntities(1.0, 1.0, 1.0)) {
+                        if (!(nearby instanceof Mob) || nearby.getType() != EntityType.DROWNED) continue;
+                        if (!(ent instanceof Item item)) continue;
+
+                        // Trade cooldown
+                        UUID drownedUUID = nearby.getUniqueId();
+                        if (tradedDrowneds.contains(drownedUUID)) continue;
+                        tradedDrowneds.add(drownedUUID);
+                        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () ->
+                                tradedDrowneds.remove(drownedUUID),
+                                plugin.getConfigManager().getDrownedTradeCooldownTicks());
+
+                        MoralityEngine.debug("Conducting trade");
+                        item.getItemStack().add(-1);
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 20L, 20L); // Run every 1s
     }
 
     // ── Provocation (pillager/undead attacks bad player) ──────────────────────
